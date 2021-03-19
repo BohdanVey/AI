@@ -1,0 +1,10 @@
+tqdm
+numpy
+matplotlib
+pandas
+jupyter
+opencv-python
+rasterio
+albumentations
+torch==1.4.0
+torchvision==0.5.0

@@ -1,0 +1,133 @@
+experiment_name: classification
+log_dir: ./experiments
+epochs: 30
+device: cuda:0
+seed: 1
+
+train:
+  dataset:
+    type: PlanetClassificationDatasetV2
+    params:
+      csv_path: /datasets/rpartsey/satellite/planet/planet_data/smart_crop/train.csv
+      transforms:
+        image:
+          ChannelsFirst:
+            params: null
+          ToNumpyInt32:
+            params: null
+          FromNumpy:
+            params: null
+          ToTorchFloat:
+            params: null
+          Normalize:
+            params:
+              mean:
+                - 4417.258621276464
+                - 3835.2537312971936
+                - 3065.427994856266
+                - 3783.5501700000373
+              std:
+                - 805.3352649209319
+                - 752.9507977334065
+                - 769.0657720493105
+                - 1136.0581964787941
+        target:
+          FromNumpy:
+            params: null
+          ToTorchFloat:
+            params: null
+      augmentations:
+        type: SmartCrop
+        params:
+          height: 256
+          width: 256
+          p: 1.0
+  loader:
+    type: DataLoader
+    params:
+      batch_size: 8
+      num_workers: 2
+      shuffle: True
+      sampler: null
+
+val:
+  dataset:
+    type: PlanetClassificationDatasetV2
+    params:
+      csv_path: /datasets/rpartsey/satellite/planet/planet_data/smart_crop/val.csv
+      transforms:
+        image:
+          ChannelsFirst:
+            params: null
+          ToNumpyInt32:
+            params: null
+          FromNumpy:
+            params: null
+          ToTorchFloat:
+            params: null
+          Normalize:
+            params:
+              mean:
+                - 4417.258621276464
+                - 3835.2537312971936
+                - 3065.427994856266
+                - 3783.5501700000373
+              std:
+                - 805.3352649209319
+                - 752.9507977334065
+                - 769.0657720493105
+                - 1136.0581964787941
+        target:
+          FromNumpy:
+            params: null
+          ToTorchFloat:
+            params: null
+      augmentations:
+        type: CenterCrop
+        params:
+          height: 256
+          width: 256
+          p: 1.0
+  loader:
+    type: DataLoader
+    params:
+      batch_size: 8
+      num_workers: 2
+      shuffle: False
+      sampler: null
+
+model:
+  type: BADetectionNet
+  save: True
+  params:
+    encoder:
+      type: resnet18
+      params:
+        depth: 5
+        weights: null
+        in_channels: 4
+        in_height: 256
+        in_width: 256
+    fc:
+      params:
+        hidden_size: [512, 512]
+        output_size: 1
+        p_dropout: 0
+
+loss:
+  type: BCELoss
+  params: null
+
+metrics:
+  IoU:
+    params:
+      threshold: 0.5
+
+optim:
+  type: Adam
+  params:
+    lr: 0.0001
+
+stopper:
+  params:
+    patience: 12
