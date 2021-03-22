@@ -43,7 +43,6 @@ def write_metrics(epoch, metrics, writer):
     for k, v in metrics.items():
         writer.add_scalar(f'metrics/{k}', v, epoch)
 
-
 def init_experiment(config):
     if os.path.exists(config.experiment_dir):
         def ask():
@@ -64,56 +63,69 @@ def init_experiment(config):
         config.dump(stream=dest_file)
 
 
-def train(model, optimizer, train_loader, loss_f, metric_fns, device):
+def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, device):
     model.train()
 
-    meter = AverageMetricsMeter(metric_fns, device)
+    meter = [AverageMetricsMeter(metric_fns, device) for _ in range(6)]
     metrics = defaultdict(lambda: 0)
-
-    for data, target in tqdm(train_loader):
+    for data, target, meta in tqdm(train_loader):
         data = data.to(device).float()
         target = target.to(device).float()
 
         output = model(data)
-        loss = loss_f(output, target)
+
+        if use_valid_masks:
+            valid_mask = meta["valid_pixels_mask"].to(device)
+        else:
+            valid_mask = torch.ones_like(meta["valid_pixels_mask"]).to(device)
+        loss = loss_f(output, target, valid_mask)
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         batch_size = target.shape[0]
+
         metrics['loss'] += loss.item() * batch_size
-        meter.update(target, output)
+        for i in range(6):
+            meter[i].update(target[:, i, :, :], output[:, i, :, :])
 
     dataset_length = len(train_loader.dataset)
     metrics['loss'] /= dataset_length
-    metrics.update(meter.get_metrics())
+    for i in range(6):
+        x = meter[i].get_metrics()
+        metrics['iou_score ' + str(i)] = x['iou_score']
 
     return metrics
 
 
-def val(model, val_loader, loss_f, metric_fns, device):
+def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
     model.eval()
 
-    meter = AverageMetricsMeter(metric_fns, device)
+    meter = [AverageMetricsMeter(metric_fns, device) for _ in range(6)]
     metrics = defaultdict(lambda: 0)
 
     with torch.no_grad():
-        for data, target in tqdm(val_loader):
+        for data, target, meta in tqdm(val_loader):
             data = data.to(device).float()
             target = target.to(device).float()
 
             output = model(data)
-            loss = loss_f(output, target)
-
+            if use_valid_masks:
+                valid_mask = meta["valid_pixels_mask"].to(device)
+            else:
+                valid_mask = torch.ones_like(meta["valid_pixels_mask"]).to(device)
+            loss = loss_f(output, target, valid_mask)
             batch_size = target.shape[0]
             metrics['loss'] += loss.item() * batch_size
-            meter.update(target, output)
 
+            for i in range(6):
+                meter[i].update(target[:, i, :, :], output[:, i, :, :])
     dataset_length = len(val_loader.dataset)
     metrics['loss'] /= dataset_length
-    metrics.update(meter.get_metrics())
-
+    for i in range(6):
+        x = meter[i].get_metrics()
+        metrics['iou_score ' + str(i)] = x['iou_score']
     return metrics
 
 
@@ -168,14 +180,15 @@ def main():
 
     train_writer = SummaryWriter(log_dir=os.path.join(config.tb_dir, 'train'))
     val_writer = SummaryWriter(log_dir=os.path.join(config.tb_dir, 'val'))
-
+    use_valid_masks_train = config.train.use_valid_masks
+    use_valid_masks_val = config.train.use_valid_masks
     for epoch in range(1, config.epochs + 1):
         print(f'Epoch {epoch}')
-        train_metrics = train(model, optimizer, train_loader, loss_f, metrics, device)
+        train_metrics = train(model, optimizer, train_loader, loss_f, metrics, use_valid_masks_train, device)
         write_metrics(epoch, train_metrics, train_writer)
         print_metrics('Train', train_metrics)
 
-        val_metrics = val(model, val_loader, loss_f, metrics, device)
+        val_metrics = val(model, val_loader, loss_f, metrics, use_valid_masks_val, device)
         write_metrics(epoch, val_metrics, val_writer)
         print_metrics('Val', val_metrics)
 

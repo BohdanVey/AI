@@ -3,7 +3,7 @@ log_dir: ./experiments
 epochs: 30
 device: cuda:0
 seed: 1
-img_size: &SIZE [ 512, 512 ]
+
 
 train:
 
@@ -32,11 +32,13 @@ train:
   loader:
     type: DataLoader
     params:
-      batch_size: 32
-      num_workers: 2
+      batch_size: 8
+      num_workers: 4
       shuffle: True
       sampler: null
   use_valid_masks: True
+
+
 val:
   dataset:
     type: AgroVision2021Dataset
@@ -68,6 +70,8 @@ val:
       shuffle: False
       sampler: null
   use_valid_masks: True
+
+
 
 model:
   type: SmpUnet
