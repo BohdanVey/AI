@@ -1,0 +1,96 @@
+experiment_name: classification_agro
+log_dir: ./experiments
+epochs: 30
+device: cuda:0
+seed: 1
+img_size: &SIZE [ 512, 512 ]
+
+train:
+
+  dataset:
+    type: AgroVision2021Dataset
+    params:
+      csv_path: /datasets/rpartsey/agriculture_vision/csv/train_serialized.csv
+      labels_path: /datasets/rpartsey/agriculture_vision/csv/labels_train.npy
+      transforms:
+        image:
+          FromNumpy:
+            params: null
+          ToTorchFloat:
+            params: null
+        target:
+          FromNumpy:
+            params: null
+          ToTorchFloat:
+            params: null
+      augmentations:
+        type: StandartAugmentation
+        params:
+          height: 256
+          width: 256
+          p: 1.0
+  loader:
+    type: DataLoader
+    params:
+      batch_size: 32
+      num_workers: 2
+      shuffle: True
+      sampler: null
+  use_valid_masks: True
+val:
+  dataset:
+    type: AgroVision2021Dataset
+    params:
+      csv_path: /datasets/rpartsey/agriculture_vision/csv/val_serialized.csv
+      labels_path: /datasets/rpartsey/agriculture_vision/csv/labels_train.npy
+      transforms:
+        image:
+          FromNumpy:
+            params: null
+          ToTorchFloat:
+            params: null
+        target:
+          FromNumpy:
+            params: null
+          ToTorchFloat:
+            params: null
+      augmentations:
+        type: StandartAugmentation
+        params:
+          height: 256
+          width: 256
+          p: 1.0
+  loader:
+    type: DataLoader
+    params:
+      batch_size: 8
+      num_workers: 2
+      shuffle: False
+      sampler: null
+  use_valid_masks: True
+
+model:
+  type: SmpUnet
+  save: True
+  params:
+    in_channels: 4
+    out_channels: 6
+
+
+loss:
+  type: FixedMultiLabelCrossEntropyMask
+  params: null
+
+metrics:
+  IoU:
+    params:
+      threshold: 0.5
+
+optim:
+  type: Adam
+  params:
+    lr: 0.0001
+
+stopper:
+  params:
+    patience: 12

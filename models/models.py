@@ -1,6 +1,38 @@
 import torch
 import torch.nn as nn
 from segmentation_models_pytorch.encoders import get_encoder
+import segmentation_models_pytorch as smp
+
+
+class SmpUnet(nn.Module):
+    def __init__(self, in_channels=3, out_channels=1, **kwargs):
+        super().__init__()
+        assert in_channels == 4, "Input should be 4"
+        unet_params = dict(
+            encoder_name="resnet34", encoder_weights="imagenet",
+            activation=None, in_channels=in_channels,
+            classes=out_channels
+        )
+        unet_params.update(kwargs)
+        print("Encoder", unet_params["encoder_name"])
+        self.model = smp.Unet(**unet_params)
+
+    def forward(self, x):
+        return self.model(x)
+
+    def change_freeze_encoder(self, freeze=True):
+        for group in [
+            self.model.encoder.layer1,
+            self.model.encoder.layer2,
+            self.model.encoder.layer3,
+            self.model.encoder.layer4,
+        ]:
+            for p in group.parameters():
+                p.requires_grad = freeze
+
+    @classmethod
+    def from_config(cls, model_config):
+        return cls(model_config.params.in_channels, model_config.params.out_channels)
 
 
 class BADetectionNet(nn.Module):
@@ -42,10 +74,10 @@ class BADetectionNet(nn.Module):
         hidden_size.insert(0, input_size)
 
         layers = []
-        for i in range(len(hidden_size)-1):
+        for i in range(len(hidden_size) - 1):
             layers += [
                 nn.Dropout(p_dropout),
-                nn.Linear(hidden_size[i], hidden_size[i+1]),
+                nn.Linear(hidden_size[i], hidden_size[i + 1]),
                 nn.ReLU(True),
             ]
 

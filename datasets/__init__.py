@@ -1,6 +1,6 @@
 from . import datasets
 from . import transforms
-from . import augs
+from . import aug
 
 
 def make_transforms(config):
@@ -11,7 +11,7 @@ def make_transforms(config):
 
 
 def make_augmentations(config):
-    augmentations_init = getattr(augs, config.type)
+    augmentations_init = getattr(aug, config.type)
     augmentations = augmentations_init(**config.params)
 
     return augmentations
@@ -21,7 +21,6 @@ def make_dataset(config):
     dataset_params = config.params
     transforms_config = dataset_params.pop('transforms')
     augmentations_config = dataset_params.pop('augmentations')
-
     image_transforms = make_transforms(transforms_config.image) if transforms_config.image else None
     target_transforms = make_transforms(transforms_config.target) if transforms_config.target else None
     augmentations = make_augmentations(augmentations_config) if augmentations_config else None

@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader as TorchDataLoader
@@ -33,7 +34,6 @@ class PlanetClassificationDataset(Dataset):
 
         if self.label_transforms:
             label = self.label_transforms(label)
-
         return image, label
 
     def __len__(self):
@@ -53,6 +53,7 @@ class PlanetClassificationDatasetV2(PlanetClassificationDataset):
     """
     Planet dataset to be used with CropNonEmptyMaskIfExists augmentation.
     """
+
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
 
@@ -73,6 +74,73 @@ class PlanetClassificationDatasetV2(PlanetClassificationDataset):
             label = self.label_transforms(label)
 
         return image, label
+
+
+class AgroSegmentationDataset(Dataset):
+    def __init__(self, csv_file, image_transforms, target_transforms, augmentations, labels=None):
+        """
+        Args:
+            csv_file (string): Path to the csv file with data locations.
+        """
+        self.csv_file = pd.read_csv(csv_file)
+        self.image_transforms = image_transforms
+        self.mask_transforms = target_transforms
+        self.augmentations = augmentations
+
+        self.__labels = np.load(labels)
+
+    @classmethod
+    def from_config(cls, config, image_transforms, target_transforms, augmentations):
+        return cls(
+            csv_file=config.csv_path,
+            image_transforms=image_transforms,
+            target_transforms=target_transforms,
+            augmentations=augmentations,
+            labels=config.labels_path
+        )
+
+
+class AgroVision2021Dataset(AgroSegmentationDataset):
+    """AgroVision Dataset"""
+
+    def __init__(self, csv_file, image_transforms=None, target_transforms=None, augmentations=None,
+                 labels=None):
+        self.csv_file = pd.read_csv(csv_file)
+        self.image_transforms = image_transforms
+        self.mask_transforms = target_transforms
+        self.augmentations = augmentations
+        self.__labels = np.load(labels)
+
+    def __getitem__(self, item):
+        row = self.csv_file.iloc[item]
+        pack_path = row['pack']
+        r, g, b, nir, vpm, sw, cs, ps, wc, ww, dp = np.load(pack_path)
+
+        image = np.array((r, g, b, nir)).transpose((1, 2, 0))
+        labels = np.array((sw, cs, ps, wc, ww, dp)).transpose((1, 2, 0))
+
+        # intentionally commented
+        if self.augmentations:
+            image, labels, vpm = self.augmentations(image, labels, vpm)
+#            image, labels, vpm = self.augmentations(image, labels, vpm)
+
+        if self.image_transforms:
+            image = self.image_transforms(image)
+
+        if self.mask_transforms:
+            labels = self.mask_transforms(labels)
+
+        image_name = os.path.basename(pack_path)
+        meta = {
+            'valid_pixels_mask': vpm.astype(np.float32),
+            'image_id': image_name,
+            'mask_id': image_name
+        }
+
+        return image, labels, meta
+
+    def __len__(self):
+        return self.csv_file.shape[0]
 
 
 class PlanetSegmentationDataset(Dataset):
@@ -107,7 +175,7 @@ class PlanetSegmentationDataset(Dataset):
 
         meta = {}  # meta data
 
-        return image, mask #, meta
+        return image, mask  # , meta
 
     def __len__(self):
         return len(self.df)
@@ -139,10 +207,6 @@ class PlanetSegmentationDatasetV2(PlanetSegmentationDataset):
             read_tif(row['pre_event_image_path']),
             read_tif(row['image_path'])
         ])
-
-
-class PlanetClassificationTestDataset:
-    pass
 
 
 class DataLoader(TorchDataLoader):

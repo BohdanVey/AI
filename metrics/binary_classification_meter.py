@@ -4,8 +4,8 @@ import torch
 class BinaryClassificationMeter:
     def __init__(self, device):
         self.conf_mat = torch.zeros(2, 2).to(device)
-        self.running_corrects = torch.tensor(0.0, dtype=torch.double)
-        self.total_count = torch.tensor(0)
+        self.running_corrects = torch.tensor(0.0, dtype=torch.double).to(device)
+        self.total_count = torch.tensor(0).to(device)
 
     def update(self, true, pred):
         tp = ((pred == 1) & (true == 1)).sum()
