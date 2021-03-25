@@ -11,6 +11,7 @@ def make_transforms(config):
 
 
 def make_augmentations(config):
+    if config == "None": return
     augmentations_init = getattr(aug, config.type)
     augmentations = augmentations_init(**config.params)
 
@@ -22,7 +23,11 @@ def make_dataset(config):
     transforms_config = dataset_params.pop('transforms')
     augmentations_config = dataset_params.pop('augmentations')
     image_transforms = make_transforms(transforms_config.image) if transforms_config.image else None
-    target_transforms = make_transforms(transforms_config.target) if transforms_config.target else None
+    try:
+        target_transforms = make_transforms(transforms_config.target) if transforms_config.target else None
+    except:
+        print("TEST DATASET")
+        target_transforms = None
     augmentations = make_augmentations(augmentations_config) if augmentations_config else None
 
     dataset_init = getattr(datasets, config.type)

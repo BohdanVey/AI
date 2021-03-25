@@ -9,7 +9,7 @@ class SmpUnet(nn.Module):
         super().__init__()
         assert in_channels == 4, "Input should be 4"
         unet_params = dict(
-            encoder_name="resnet34", encoder_weights="imagenet",
+            encoder_name="efficientnet-b7", encoder_weights="imagenet",
             activation=None, in_channels=in_channels,
             classes=out_channels
         )

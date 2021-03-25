@@ -7,6 +7,7 @@ from torchvision import datasets, transforms
 import albumentations as albu
 import cv2
 
+class FlipAugmentation:
 
 class StandartAugmentation:
 

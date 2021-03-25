@@ -3,6 +3,7 @@ import shutil
 import argparse
 from collections import defaultdict
 
+import cv2
 import numpy as np
 import random
 from tqdm import tqdm
@@ -10,13 +11,15 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 from config import get_config
-from metrics import make_metrics, AverageMetricsMeter
+from metrics import make_metrics, AverageMetricsMeter, calculate_iou
 from utils.early_stopping import EarlyStopping
 
 from models import make_model
 from datasets import make_dataset, make_data_loader
 from losses import make_loss
 from optims import make_optimizer
+
+import torch.nn as nn
 
 
 def set_random_seed(seed):
@@ -43,6 +46,7 @@ def write_metrics(epoch, metrics, writer):
     for k, v in metrics.items():
         writer.add_scalar(f'metrics/{k}', v, epoch)
 
+
 def init_experiment(config):
     if os.path.exists(config.experiment_dir):
         def ask():
@@ -65,15 +69,31 @@ def init_experiment(config):
 
 def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, device):
     model.train()
-
+    www = 0
     meter = [AverageMetricsMeter(metric_fns, device) for _ in range(6)]
     metrics = defaultdict(lambda: 0)
+    intersection = [0] * 7
+    union = [0] * 7
     for data, target, meta in tqdm(train_loader):
         data = data.to(device).float()
         target = target.to(device).float()
-
         output = model(data)
+        if (www % 100 == 5):
+            print(intersection/union)
+            for i in range(6):
+                if torch.unique(target[0][i]).shape[0] == 2:
+                    cv2.imwrite(f'train/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
+                    cv2.imwrite(f'train/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                    print(i)
+                    print("Saved_train")
+                else:
+                    cv2.imwrite(f'train/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
+                    cv2.imwrite(f'train/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
 
+        www += 1
+        w = calculate_iou(target, output)
+        intersection += w[0]
+        union += w[1]
         if use_valid_masks:
             valid_mask = meta["valid_pixels_mask"].to(device)
         else:
@@ -88,8 +108,9 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
 
         metrics['loss'] += loss.item() * batch_size
         for i in range(6):
-            meter[i].update(target[:, i, :, :], output[:, i, :, :])
-
+            for j in range(target.shape[0]):
+                if torch.unique(target[0][i]).shape[0] == 2:
+                    x = meter[i].update(target[j, i, :, :], output[j, i, :, :])
     dataset_length = len(train_loader.dataset)
     metrics['loss'] /= dataset_length
     for i in range(6):
@@ -104,13 +125,30 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
 
     meter = [AverageMetricsMeter(metric_fns, device) for _ in range(6)]
     metrics = defaultdict(lambda: 0)
-
+    www = 0
+    intersection = np.zeros(6)
+    union = np.zeros(6)
     with torch.no_grad():
         for data, target, meta in tqdm(val_loader):
+
             data = data.to(device).float()
             target = target.to(device).float()
 
             output = model(data)
+            if (www % 100 == 6):
+                print(intersection/union)
+                for i in range(6):
+                    if torch.unique(target[0][i]).shape[0] == 2:
+                        cv2.imwrite(f'test/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
+                        cv2.imwrite(f'test/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                        print(i)
+                        print("Saved_test")
+                    else:
+                        cv2.imwrite(f'test/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
+                        cv2.imwrite(f'test/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
+
+            www += 1
+
             if use_valid_masks:
                 valid_mask = meta["valid_pixels_mask"].to(device)
             else:
@@ -118,15 +156,46 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
             loss = loss_f(output, target, valid_mask)
             batch_size = target.shape[0]
             metrics['loss'] += loss.item() * batch_size
-
+            w = calculate_iou(target, output)
+            intersection += w[0]
+            union += w[1]
+            print(w)
             for i in range(6):
-                meter[i].update(target[:, i, :, :], output[:, i, :, :])
+                for j in range(target.shape[0]):
+                    if torch.unique(target[0][i]).shape[0] == 2:
+                        x = meter[i].update(target[j, i, :, :], output[j, i, :, :])
+
     dataset_length = len(val_loader.dataset)
     metrics['loss'] /= dataset_length
     for i in range(6):
         x = meter[i].get_metrics()
         metrics['iou_score ' + str(i)] = x['iou_score']
     return metrics
+
+
+def test(model, test_loader, use_valid_masks, device, save_to, threshold=0.5):
+    model.eval()
+
+    with torch.no_grad():
+        for data, meta in tqdm(test_loader):
+
+            data = data.to(device).float()
+
+            output = model(data)
+
+            if use_valid_masks:
+                valid_mask = meta["valid_pixels_mask"].to(device)
+            else:
+                valid_mask = torch.ones_like(meta["valid_pixels_mask"]).to(device)
+            batch_size = output.shape[0]
+            size = output.shape
+            answer = np.zeros((size[0], 1, size[2], size[3]))
+            output = nn.Sigmoid()(output)
+            for i in range(batch_size):
+                answer[i, 0, :, :] = (np.argmax(output[i, :, :, :].cpu().numpy(), axis=0) + 1) * (
+                        np.ndarray.max(output[i, :, :, :].cpu().numpy(), axis=0) > threshold)
+                cv2.imwrite(os.path.join(save_to, meta['image_id'][i].split('.')[0] + '.png'), answer[i, 0])
+    return None
 
 
 def parse_args():
@@ -164,6 +233,8 @@ def main():
 
     val_dataset = make_dataset(config.val.dataset)
     val_loader = make_data_loader(config.val.loader, val_dataset)
+    test_dataset = make_dataset(config.test.dataset)
+    test_loader = make_data_loader(config.test.loader, test_dataset)
 
     device = torch.device(config.device)
     model = make_model(config.model).to(device)
@@ -182,6 +253,7 @@ def main():
     val_writer = SummaryWriter(log_dir=os.path.join(config.tb_dir, 'val'))
     use_valid_masks_train = config.train.use_valid_masks
     use_valid_masks_val = config.train.use_valid_masks
+    save_to = config.test.save_to
     for epoch in range(1, config.epochs + 1):
         print(f'Epoch {epoch}')
         train_metrics = train(model, optimizer, train_loader, loss_f, metrics, use_valid_masks_train, device)
@@ -192,7 +264,9 @@ def main():
         write_metrics(epoch, val_metrics, val_writer)
         print_metrics('Val', val_metrics)
 
-        early_stopping(val_metrics['loss'])
+        # early_stopping(val_metrics['loss'])
+        test_metrics = test(model, test_loader, True, device, save_to)
+        print("Saved")
         if config.model.save and early_stopping.counter == 0:
             torch.save(model.state_dict(), config.model.best_checkpoint_path)
             print('Saved best model checkpoint to disk.')
