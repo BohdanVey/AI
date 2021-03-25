@@ -11,7 +11,7 @@ def make_model(config):
         model = model_init.from_config(config)
     try:
         model.load_state_dict(torch.load(config.load))
-        print(f"Model loaded, path: {config.load}")
+        print(f"Model loaded, path: {config.load    }")
     except:
         print("Wrong Load")
     return model

@@ -79,13 +79,10 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
         target = target.to(device).float()
         output = model(data)
         if (www % 100 == 5):
-            print(intersection / union)
             for i in range(6):
                 if torch.unique(target[0][i]).shape[0] == 2:
                     cv2.imwrite(f'train/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
                     cv2.imwrite(f'train/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
-                    print(i)
-                    print("Saved_train")
                 else:
                     cv2.imwrite(f'train/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
                     cv2.imwrite(f'train/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
@@ -107,15 +104,12 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
         batch_size = target.shape[0]
 
         metrics['loss'] += loss.item() * batch_size
-        for i in range(6):
-            for j in range(target.shape[0]):
-                if torch.unique(target[0][i]).shape[0] == 2:
-                    x = meter[i].update(target[j, i, :, :], output[j, i, :, :])
     dataset_length = len(train_loader.dataset)
     metrics['loss'] /= dataset_length
     for i in range(6):
         x = meter[i].get_metrics()
-        metrics['iou_score ' + str(i)] = x['iou_score']
+        metrics['iou_score ' + str(i)] = intersection[i] / union[i]
+    print(intersection / union)
 
     return metrics
 
@@ -135,14 +129,11 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
             target = target.to(device).float()
 
             output = model(data)
-            if (www % 100 == 6):
-                print(intersection / union)
+            if (www % 100 == 99):
                 for i in range(6):
                     if torch.unique(target[0][i]).shape[0] == 2:
                         cv2.imwrite(f'test/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
                         cv2.imwrite(f'test/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
-                        print(i)
-                        print("Saved_test")
                     else:
                         cv2.imwrite(f'test/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
                         cv2.imwrite(f'test/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
@@ -159,17 +150,19 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
             w = calculate_iou(target, output)
             intersection += w[0]
             union += w[1]
-            print(w)
+
+            '''
             for i in range(6):
                 for j in range(target.shape[0]):
                     if torch.unique(target[0][i]).shape[0] == 2:
                         x = meter[i].update(target[j, i, :, :], output[j, i, :, :])
-
+            '''
     dataset_length = len(val_loader.dataset)
     metrics['loss'] /= dataset_length
+
     for i in range(6):
         x = meter[i].get_metrics()
-        metrics['iou_score ' + str(i)] = x['iou_score']
+        metrics['iou_score ' + str(i)] = intersection[i] / union[i]
     return metrics
 
 
@@ -236,7 +229,7 @@ def main():
     device = torch.device(config.device)
     model = make_model(config.model).to(device)
 
-    optimizer = make_optimizer(config.optim, model.parameters())
+    print("HERE")
     scheduler = None
 
     loss_f = make_loss(config.loss)
@@ -251,22 +244,31 @@ def main():
     use_valid_masks_train = config.train.use_valid_masks
     use_valid_masks_val = config.train.use_valid_masks
     save_to = config.test.save_to
+    best_loss = 1000000
+    step = config.epochs / (len(config.optim.params.lr) - 1)
     for epoch in range(1, config.epochs + 1):
-        print(f'Epoch {epoch}')
+        optimizer = make_optimizer(config.optim, model.parameters(), epoch // step)
+
         train_metrics = train(model, optimizer, train_loader, loss_f, metrics, use_valid_masks_train, device)
         write_metrics(epoch, train_metrics, train_writer)
         print_metrics('Train', train_metrics)
 
         val_metrics = val(model, val_loader, loss_f, metrics, use_valid_masks_val, device)
+        loss = val_metrics['loss']
         write_metrics(epoch, val_metrics, val_writer)
         print_metrics('Val', val_metrics)
-
-        # early_stopping(val_metrics['loss'])
+        early_stopping(val_metrics['loss'])
         test(model, test_loader, True, device, save_to)
-        print("Saved")
         if config.model.save and early_stopping.counter == 0:
-            torch.save(model.state_dict(), config.model.best_checkpoint_path)
-            print('Saved best model checkpoint to disk.')
+            if loss < best_loss:
+                print("Saved")
+                best_loss = min(loss, best_loss)
+                print(loss, best_loss)
+
+                torch.save(model.state_dict(), config.model.best_checkpoint_path)
+                print('Saved best model checkpoint to disk.')
+        else:
+            print("Loss start growing")
         if early_stopping.early_stop:
             print(f'Early stopping after {epoch} epochs.')
             break

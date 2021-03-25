@@ -11,7 +11,9 @@ transformations = {
     'flip': [A.VerticalFlip(p=0.2),
              A.HorizontalFlip(p=0.2),
              A.RandomBrightness(p=0.3)],
-    'brightness': [A.RandomBrightness(p=0.5)]
+    'brightness': [A.OneOf([
+        A.RandomBrightness(p=0.5),
+        A.RandomBrightnessContrast(p=0.5)], p = 0.7)]
 }
 
 
