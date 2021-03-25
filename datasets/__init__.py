@@ -11,11 +11,10 @@ def make_transforms(config):
 
 
 def make_augmentations(config):
+    augmentations = []
     if config == "None": return
-    augmentations_init = getattr(aug, config.type)
-    augmentations = augmentations_init(**config.params)
-
-    return augmentations
+    augs = aug.Augmentation(config.type)
+    return augs
 
 
 def make_dataset(config):

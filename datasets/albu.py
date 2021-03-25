@@ -29,8 +29,8 @@ def get_transforms(config):
                                      albu.VerticalFlip(p=p),
                                      albu.ShiftScaleRotate(p=p),
                                      albu.Transpose(p=p),
-                                     # albu.OpticalDistortion(p=p),
-                                     # albu.ElasticTransform(p=p),
+                                     # A.OpticalDistortion(p=p),
+                                     # A.ElasticTransform(p=p),
                                      ])
             }
 

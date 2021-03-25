@@ -23,12 +23,13 @@ train:
             params: null
           ToTorchFloat:
             params: null
+
+
       augmentations:
-        type: StandartAugmentation
-        params:
-          height: 256
-          width: 256
-          p: 1.0
+        type:
+          - flip
+          - brightness
+
   loader:
     type: DataLoader
     params:
@@ -56,12 +57,7 @@ val:
             params: null
           ToTorchFloat:
             params: null
-      augmentations:
-        type: StandartAugmentation
-        params:
-          height: 256
-          width: 256
-          p: 1.0
+      augmentations: None
   loader:
     type: DataLoader
     params:

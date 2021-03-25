@@ -72,14 +72,14 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
     www = 0
     meter = [AverageMetricsMeter(metric_fns, device) for _ in range(6)]
     metrics = defaultdict(lambda: 0)
-    intersection = [0] * 7
-    union = [0] * 7
+    intersection = np.zeros(7)
+    union = np.zeros(7)
     for data, target, meta in tqdm(train_loader):
         data = data.to(device).float()
         target = target.to(device).float()
         output = model(data)
         if (www % 100 == 5):
-            print(intersection/union)
+            print(intersection / union)
             for i in range(6):
                 if torch.unique(target[0][i]).shape[0] == 2:
                     cv2.imwrite(f'train/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
@@ -126,8 +126,8 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
     meter = [AverageMetricsMeter(metric_fns, device) for _ in range(6)]
     metrics = defaultdict(lambda: 0)
     www = 0
-    intersection = np.zeros(6)
-    union = np.zeros(6)
+    intersection = np.zeros(7)
+    union = np.zeros(7)
     with torch.no_grad():
         for data, target, meta in tqdm(val_loader):
 
@@ -136,7 +136,7 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
 
             output = model(data)
             if (www % 100 == 6):
-                print(intersection/union)
+                print(intersection / union)
                 for i in range(6):
                     if torch.unique(target[0][i]).shape[0] == 2:
                         cv2.imwrite(f'test/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
@@ -178,11 +178,8 @@ def test(model, test_loader, use_valid_masks, device, save_to, threshold=0.5):
 
     with torch.no_grad():
         for data, meta in tqdm(test_loader):
-
             data = data.to(device).float()
-
             output = model(data)
-
             if use_valid_masks:
                 valid_mask = meta["valid_pixels_mask"].to(device)
             else:
@@ -265,7 +262,7 @@ def main():
         print_metrics('Val', val_metrics)
 
         # early_stopping(val_metrics['loss'])
-        test_metrics = test(model, test_loader, True, device, save_to)
+        test(model, test_loader, True, device, save_to)
         print("Saved")
         if config.model.save and early_stopping.counter == 0:
             torch.save(model.state_dict(), config.model.best_checkpoint_path)

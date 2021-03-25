@@ -121,8 +121,10 @@ class AgroVision2021Dataset(AgroSegmentationDataset):
 
         # intentionally commented
         if self.augmentations:
+            # TODO Rewrite without cycle
+            print()
             image, labels, vpm = self.augmentations(image, labels, vpm)
-#            image, labels, vpm = self.augmentations(image, labels, vpm)
+        #            image, labels, vpm = self.augmentations(image, labels, vpm)
 
         if self.image_transforms:
             image = self.image_transforms(image)
@@ -141,13 +143,6 @@ class AgroVision2021Dataset(AgroSegmentationDataset):
 
     def __len__(self):
         return self.csv_file.shape[0]
-
-
-
-
-
-
-
 
 
 class AgroVision2021DatasetTest(AgroSegmentationDataset):
@@ -169,8 +164,8 @@ class AgroVision2021DatasetTest(AgroSegmentationDataset):
         image = np.array((r, g, b, nir)).transpose((1, 2, 0))
         # intentionally commented
         if self.augmentations:
-            image, vpm = self.augmentations(image,None, vpm)
-#            image, labels, vpm = self.augmentations(image, labels, vpm)
+            image, vpm = self.augmentations(image, None, vpm)
+        #            image, labels, vpm = self.augmentations(image, labels, vpm)
 
         if self.image_transforms:
             image = self.image_transforms(image)
@@ -186,22 +181,6 @@ class AgroVision2021DatasetTest(AgroSegmentationDataset):
 
     def __len__(self):
         return self.csv_file.shape[0]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 class PlanetSegmentationDataset(Dataset):
