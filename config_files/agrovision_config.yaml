@@ -1,4 +1,4 @@
-experiment_name: classification_agro4
+experiment_name: classification_agro5
 log_dir: ./experiments
 epochs: 30
 device: cuda:0
@@ -33,7 +33,7 @@ train:
   loader:
     type: DataLoader
     params:
-      batch_size: 4
+      batch_size: 6
       num_workers: 3
       shuffle: True
       sampler: null
@@ -92,9 +92,9 @@ test:
 
 
 model:
-  type: SmpUnet
+  type: Unet
   save: True
-  load: /home/ocr/code/AgroVision2021/experiments/classification_agro3/best_checkpoint.pt
+  load: /home/ocr/code/AgroVision2021/experiments/classification_agro4/best_checkpoint.pt
   params:
     in_channels: 4
     out_channels: 6
@@ -113,9 +113,10 @@ optim:
   type: Adam
   params:
     lr:
-      - 0.001
+      - 0.0001
       - 0.0005
       - 0.0001
+      - 0.0005
 stopper:
   params:
     patience: 12

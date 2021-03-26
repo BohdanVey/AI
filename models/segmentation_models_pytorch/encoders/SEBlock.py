@@ -32,6 +32,7 @@ class SEBlock(nn.Module):
 
     def __init__(self,
                  channels,
+                 device = "cpu",
                  reduction=16,
                  approx_sigmoid=False,
                  activation=(lambda: nn.ReLU(inplace=True))):
@@ -42,12 +43,12 @@ class SEBlock(nn.Module):
         self.conv1 = conv1x1(
             in_channels=channels,
             out_channels=mid_cannels,
-            bias=True)
+            bias=True).to(device)
         self.activ = get_activation_layer(activation)
         self.conv2 = conv1x1(
             in_channels=mid_cannels,
             out_channels=channels,
-            bias=True)
+            bias=True).to(device)
         self.sigmoid = HSigmoid() if approx_sigmoid else nn.Sigmoid()
 
     def forward(self, x):
@@ -57,4 +58,5 @@ class SEBlock(nn.Module):
         w = self.conv2(w)
         w = self.sigmoid(w)
         x = x * w
+
         return x

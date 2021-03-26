@@ -115,14 +115,12 @@ class AgroVision2021Dataset(AgroSegmentationDataset):
         row = self.csv_file.iloc[item]
         pack_path = row['pack']
         r, g, b, nir, vpm, sw, cs, ps, wc, ww, dp = np.load(pack_path)
-
         image = np.array((r, g, b, nir)).transpose((1, 2, 0))
         labels = np.array((cs, dp, ps, sw, ww, wc)).transpose((1, 2, 0))
 
         # intentionally commented
         if self.augmentations:
             # TODO Rewrite without cycle
-            print()
             image, labels, vpm = self.augmentations(image, labels, vpm)
         #            image, labels, vpm = self.augmentations(image, labels, vpm)
 

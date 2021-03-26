@@ -245,9 +245,13 @@ def main():
     use_valid_masks_val = config.train.use_valid_masks
     save_to = config.test.save_to
     best_loss = 1000000
-    step = config.epochs / (len(config.optim.params.lr) - 1)
+    if len(config.optim.params.lr) !=1:
+        step = config.epochs / (len(config.optim.params.lr) - 1)
+    else:
+        step = config.epochs * 2
     for epoch in range(1, config.epochs + 1):
-        optimizer = make_optimizer(config.optim, model.parameters(), epoch // step)
+        print(f"Epoch {epoch+1}")
+        optimizer = make_optimizer(config.optim, model.parameters(), int(epoch // step))
 
         train_metrics = train(model, optimizer, train_loader, loss_f, metrics, use_valid_masks_train, device)
         write_metrics(epoch, train_metrics, train_writer)
