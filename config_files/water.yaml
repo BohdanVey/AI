@@ -1,4 +1,4 @@
-experiment_name: DenseNetSeBlocksTest
+experiment_name: Small
 log_dir: ./experiments
 epochs: 30
 device: cuda:0
@@ -8,7 +8,7 @@ seed: 1
 train:
 
   dataset:
-    type: AgroVision2021Dataset
+    type: AgroVision2021DatasetWater
     params:
       csv_path: /datasets/rpartsey/agriculture_vision/csv/train_serialized.csv
       labels_path: /datasets/rpartsey/agriculture_vision/csv/labels_train.npy
@@ -41,7 +41,7 @@ train:
 
 val:
   dataset:
-    type: AgroVision2021Dataset
+    type: AgroVision2021DatasetWater
     params:
       csv_path: /datasets/rpartsey/agriculture_vision/csv/val_serialized.csv
       labels_path: /datasets/rpartsey/agriculture_vision/csv/labels_train.npy
@@ -96,12 +96,11 @@ model:
   load: /home/ocr/code/AgroVision2021/experiments/DenseNetSeBlocks/best_checkpoint.pt
   params:
     in_channels: 4
-    out_channels: 6
-    encoder-ma
+    out_channels: 3
 
 
 loss:
-  type: FixedMultiLabelCrossEntropyMask
+  type: ACW_loss
   params: null
 
 metrics:
@@ -110,11 +109,12 @@ metrics:
       threshold: 0.5
 
 optim:
-  type: Adam
+  type: SGD
   params:
     lr:
       - 0.0005
       - 0.0001
+  momentum: 0.9
 stopper:
   params:
     patience: 12

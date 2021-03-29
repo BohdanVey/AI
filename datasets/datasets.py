@@ -115,8 +115,11 @@ class AgroVision2021Dataset(AgroSegmentationDataset):
         row = self.csv_file.iloc[item]
         pack_path = row['pack']
         r, g, b, nir, vpm, sw, cs, ps, wc, ww, dp = np.load(pack_path)
+
         image = np.array((r, g, b, nir)).transpose((1, 2, 0))
-        labels = np.array((cs, dp, ps, sw, ww, wc)).transpose((1, 2, 0))
+        bg = 1 - np.max((cs, dp, ps, sw, ww, wc), axis=0)
+        labels = np.array((bg, cs, dp, ps, sw, ww, wc)).transpose((1, 2, 0))
+        #labels = np.array((cs, dp, ps, sw, ww, wc)).transpose((1, 2, 0))
 
         # intentionally commented
         if self.augmentations:
@@ -137,6 +140,50 @@ class AgroVision2021Dataset(AgroSegmentationDataset):
             'mask_id': image_name
         }
 
+        return image, labels, meta
+
+    def __len__(self):
+        return self.csv_file.shape[0]
+
+
+class AgroVision2021DatasetWater(AgroSegmentationDataset):
+    """AgroVision Dataset"""
+
+    def __init__(self, csv_file, image_transforms=None, target_transforms=None, augmentations=None,
+                 labels=None):
+
+        self.csv_file = pd.read_csv(csv_file)
+        self.image_transforms = image_transforms
+        self.mask_transforms = target_transforms
+        self.augmentations = augmentations
+        self.__labels = np.load(labels)
+
+    def __getitem__(self, item):
+        row = self.csv_file.iloc[item]
+        pack_path = row['pack']
+        r, g, b, nir, vpm, sw, cs, ps, wc, ww, dp = np.load(pack_path)
+        image = np.array((r, g, b, nir)).transpose((1, 2, 0))
+        bg = 1 - np.max((cs, dp, ps, sw, ww, wc), axis=0)
+        labels = np.array((bg, sw, ww)).transpose((1, 2, 0))
+
+        # intentionally commented
+        if self.augmentations:
+            # TODO Rewrite without cycle
+            image, labels, vpm = self.augmentations(image, labels, vpm)
+        #            image, labels, vpm = self.augmentations(image, labels, vpm)
+
+        if self.image_transforms:
+            image = self.image_transforms(image)
+
+        if self.mask_transforms:
+            labels = self.mask_transforms(labels)
+
+        image_name = os.path.basename(pack_path)
+        meta = {
+            'valid_pixels_mask': vpm.astype(np.float32),
+            'image_id': image_name,
+            'mask_id': image_name
+        }
         return image, labels, meta
 
     def __len__(self):

@@ -67,25 +67,25 @@ def init_experiment(config):
         config.dump(stream=dest_file)
 
 
-def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, device):
+def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, device, n=7):
     model.train()
     www = 0
-    meter = [AverageMetricsMeter(metric_fns, device) for _ in range(6)]
+    meter = [AverageMetricsMeter(metric_fns, device) for _ in range(7)]
     metrics = defaultdict(lambda: 0)
-    intersection = np.zeros(7)
-    union = np.zeros(7)
+    intersection = np.zeros(n)
+    union = np.zeros(n)
     for data, target, meta in tqdm(train_loader):
         data = data.to(device).float()
         target = target.to(device).float()
         output = model(data)
-        if (www % 100 == 5):
-            for i in range(6):
+        if (www % 100 == 99):
+            for i in range(n):
                 if torch.unique(target[0][i]).shape[0] == 2:
-                    cv2.imwrite(f'train/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
-                    cv2.imwrite(f'train/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                    cv2.imwrite(f'test/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
+                    cv2.imwrite(f'test/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
                 else:
-                    cv2.imwrite(f'train/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
-                    cv2.imwrite(f'train/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                    cv2.imwrite(f'test/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
+                    cv2.imwrite(f'test/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
 
         www += 1
         w = calculate_iou(target, output)
@@ -102,26 +102,29 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
         optimizer.step()
 
         batch_size = target.shape[0]
-
         metrics['loss'] += loss.item() * batch_size
     dataset_length = len(train_loader.dataset)
     metrics['loss'] /= dataset_length
-    for i in range(6):
+    metrics['average_iou'] = 0
+
+    for i in range(n):
         x = meter[i].get_metrics()
         metrics['iou_score ' + str(i)] = intersection[i] / union[i]
+        metrics['average_iou'] += intersection[i] / union[i] / 7
+
     print(intersection / union)
 
     return metrics
 
 
-def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
+def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, n=7):
     model.eval()
 
-    meter = [AverageMetricsMeter(metric_fns, device) for _ in range(6)]
+    meter = [AverageMetricsMeter(metric_fns, device) for _ in range(7)]
     metrics = defaultdict(lambda: 0)
     www = 0
-    intersection = np.zeros(7)
-    union = np.zeros(7)
+    intersection = np.zeros(n)
+    union = np.zeros(n)
     with torch.no_grad():
         for data, target, meta in tqdm(val_loader):
 
@@ -130,13 +133,13 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
 
             output = model(data)
             if (www % 100 == 99):
-                for i in range(6):
+                for i in range(n):
                     if torch.unique(target[0][i]).shape[0] == 2:
-                        cv2.imwrite(f'test/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
-                        cv2.imwrite(f'test/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                        cv2.imwrite(f'train/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
+                        cv2.imwrite(f'train/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
                     else:
-                        cv2.imwrite(f'test/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
-                        cv2.imwrite(f'test/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                        cv2.imwrite(f'train/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
+                        cv2.imwrite(f'train/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
 
             www += 1
 
@@ -159,10 +162,11 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
             '''
     dataset_length = len(val_loader.dataset)
     metrics['loss'] /= dataset_length
-
-    for i in range(6):
+    metrics['average_iou'] = 0
+    for i in range(n):
         x = meter[i].get_metrics()
         metrics['iou_score ' + str(i)] = intersection[i] / union[i]
+        metrics['average_iou'] += intersection[i] / union[i] / 7
     return metrics
 
 
@@ -182,8 +186,7 @@ def test(model, test_loader, use_valid_masks, device, save_to, threshold=0.5):
             answer = np.zeros((size[0], 1, size[2], size[3]))
             output = nn.Sigmoid()(output)
             for i in range(batch_size):
-                answer[i, 0, :, :] = (np.argmax(output[i, :, :, :].cpu().numpy(), axis=0) + 1) * (
-                        np.ndarray.max(output[i, :, :, :].cpu().numpy(), axis=0) > threshold)
+                answer[i, 0, :, :] = np.argmax(output[i, :, :, :].cpu().numpy(), axis=0)
                 cv2.imwrite(os.path.join(save_to, meta['image_id'][i].split('.')[0] + '.png'), answer[i, 0])
     return None
 
@@ -201,10 +204,34 @@ def parse_args():
     return args
 
 
+def clear_files():
+    for i in range(0, 6):
+        folder = f'test/{i}'
+        for filename in os.listdir(folder):
+            file_path = os.path.join(folder, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print('Failed to delete %s. Reason: %s' % (file_path, e))
+        folder = f'train/{i}'
+        for filename in os.listdir(folder):
+            file_path = os.path.join(folder, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+
 def main():
     args = parse_args()
     config_path = args.config_file_path
-
+    clear_files()
     config = get_config(config_path, new_keys_allowed=True)
 
     config.defrost()
@@ -245,24 +272,28 @@ def main():
     use_valid_masks_val = config.train.use_valid_masks
     save_to = config.test.save_to
     best_loss = 1000000
-    if len(config.optim.params.lr) !=1:
+    if len(config.optim.params.lr) != 1:
         step = config.epochs / (len(config.optim.params.lr) - 1)
     else:
         step = config.epochs * 2
     for epoch in range(1, config.epochs + 1):
-        print(f"Epoch {epoch+1}")
+        print(f"Epoch {epoch + 1}")
         optimizer = make_optimizer(config.optim, model.parameters(), int(epoch // step))
 
-        train_metrics = train(model, optimizer, train_loader, loss_f, metrics, use_valid_masks_train, device)
-        write_metrics(epoch, train_metrics, train_writer)
-        print_metrics('Train', train_metrics)
+        if config.to_train == True:
+            train_metrics = train(model, optimizer, train_loader, loss_f, metrics, use_valid_masks_train, device,
+                                  config.model.params.out_channels)
+            write_metrics(epoch, train_metrics, train_writer)
+            print_metrics('Train', train_metrics)
 
-        val_metrics = val(model, val_loader, loss_f, metrics, use_valid_masks_val, device)
+        val_metrics = val(model, val_loader, loss_f, metrics, use_valid_masks_val, device,
+                          config.model.params.out_channels)
         loss = val_metrics['loss']
         write_metrics(epoch, val_metrics, val_writer)
         print_metrics('Val', val_metrics)
         early_stopping(val_metrics['loss'])
-        test(model, test_loader, True, device, save_to)
+        test(model, test_loader, True, device, save_to, 0.6)
+        torch.save(model.state_dict(), config.model.last_checkpoint_path)
         if config.model.save and early_stopping.counter == 0:
             if loss < best_loss:
                 print("Saved")

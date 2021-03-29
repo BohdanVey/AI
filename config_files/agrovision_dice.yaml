@@ -1,10 +1,10 @@
-experiment_name: DenseNetSeBlocksTest
+experiment_name: DenseNet161
 log_dir: ./experiments
 epochs: 30
 device: cuda:0
-seed: 1
+seed: 10
 
-
+to_train: True
 train:
 
   dataset:
@@ -28,11 +28,11 @@ train:
       augmentations:
         type:
           - flip
-
+          - brightness
   loader:
     type: DataLoader
     params:
-      batch_size: 12
+      batch_size: 6
       num_workers: 3
       shuffle: True
       sampler: null
@@ -67,7 +67,7 @@ val:
   use_valid_masks: True
 
 test:
-  save_to: /datasets/vey/agrovision/sub_1
+  save_to: /datasets/vey/agrovision/sub_2
   dataset:
     type: AgroVision2021DatasetTest
     params:
@@ -93,15 +93,14 @@ test:
 model:
   type: Unet
   save: True
-  load: /home/ocr/code/AgroVision2021/experiments/DenseNetSeBlocks/best_checkpoint.pt
+  load: /home/ocr/code/AgroVision2021/experiments/EfficientNetb4ACWLoss/best_checkpoint.pt
   params:
     in_channels: 4
-    out_channels: 6
-    encoder-ma
-
+    out_channels: 7
+    encoder_name: densenet161
 
 loss:
-  type: FixedMultiLabelCrossEntropyMask
+  type: ACW_loss
   params: null
 
 metrics:
@@ -110,11 +109,13 @@ metrics:
       threshold: 0.5
 
 optim:
-  type: Adam
+  type: SGD
   params:
     lr:
-      - 0.0005
       - 0.0001
+      - 0.00005
+      - 0.00001
+    momentum: 0.9
 stopper:
   params:
     patience: 12

@@ -18,6 +18,16 @@ def calculate_iou(target, output):
     out = nn.Sigmoid()(output).detach().cpu().numpy()
     tar = target.cpu().numpy()
     ans = out > 0.5
+    intersection = np.sum(np.sum(np.sum(ans * tar, axis=0), axis=1), axis=1)
+    union = np.sum(np.sum(np.sum(ans, axis=0), axis=1), axis=1) + np.sum(
+        np.sum(np.sum(tar, axis=0), axis=1), axis=1) - intersection
+    return intersection.astype("int64"), union.astype("int64")
+
+
+def calculate_iou6(target, output):
+    out = nn.Sigmoid()(output).detach().cpu().numpy()
+    tar = target.cpu().numpy()
+    ans = out > 0.5
 
     background = 1 - np.max(tar, axis=1)
     background = background.reshape((tar.shape[0], 1, tar.shape[2], tar.shape[3]))

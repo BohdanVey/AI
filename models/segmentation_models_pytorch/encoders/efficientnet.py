@@ -25,7 +25,7 @@ Methods:
 import torch.nn as nn
 from efficientnet_pytorch import EfficientNet
 from efficientnet_pytorch.utils import url_map, url_map_advprop, get_model_params
-
+from .SEBlock import SEBlock
 from ._base import EncoderMixin
 
 
@@ -38,8 +38,11 @@ class EfficientNetEncoder(EfficientNet, EncoderMixin):
         self._stage_idxs = stage_idxs
         self._out_channels = out_channels
         self._depth = depth
-        self._in_channels = 3
-
+        self._in_channels = 4
+        self.seblocks = []
+        self.channels = [4,48,32,32,4]
+        for i in range(depth):
+            self.seblocks.append(SEBlock(self.channels[i]))
         del self._fc
 
     def get_stages(self):
@@ -64,13 +67,14 @@ class EfficientNetEncoder(EfficientNet, EncoderMixin):
             # Identity and Sequential stages
             if i < 2:
                 x = stages[i](x)
-
+                x = self.seblocks[i](x)
             # Block stages need drop_connect rate
             else:
                 for module in stages[i]:
                     drop_connect = drop_connect_rate * block_number / len(self._blocks)
                     block_number += 1.
                     x = module(x, drop_connect)
+
 
             features.append(x)
 

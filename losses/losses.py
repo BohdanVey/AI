@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import numpy as np
 
 def dice_loss(input, target):
     smooth = 1.
@@ -60,17 +60,6 @@ class WrappedBinaryLogDice(nn.Module):
         return v.sum()
 
 
-class LogDiceAndFocalLoss(nn.Module):
-    def __init__(self, dice_weight=1.0, focal_weight=4.0):
-        super().__init__()
-        self.logdice = WrappedBinaryLogDice()
-        self.focal = FixedBinaryFocalWrapped()
-        self.dice_weight = dice_weight
-        self.focal_weight = focal_weight
-
-    def forward(self, input, target, mask):
-        return self.logdice(input, target, mask) * self.dice_weight + self.focal_weight * self.focal(input, target,
-                                                                                                     mask)
 
 
 class ImageBinaryLogDice(nn.Module):
@@ -309,3 +298,101 @@ class WeightedLogDice(nn.Module):
                 2 * true_pos + self.alpha * false_neg + self.beta * false_pos + self.smooth)
 
         return - loss.log()
+
+
+class LogDiceAndFocalLoss(nn.Module):
+    def __init__(self, dice_weight=2.0, focal_weight=4.0):
+        super().__init__()
+        self.logdice = WeightedLogDice()
+        self.focal = FixedBinaryFocalWrapped()
+        self.dice_weight = dice_weight
+        self.focal_weight = focal_weight
+
+    def forward(self, input, target, mask):
+        return self.logdice(input, target) * self.dice_weight + self.focal_weight * self.focal(input, target,
+                                                                                                     mask)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class ACW_loss(nn.Module):
+    def __init__(self,  ini_weight=0, ini_iteration=0, eps=1e-5, ignore_index=255):
+        super(ACW_loss, self).__init__()
+        self.ignore_index = ignore_index
+        self.weight = ini_weight
+        self.itr = ini_iteration
+        self.eps = eps
+
+    def forward(self, prediction, target, valid_mask = None):
+        """
+        pred :    shape (N, C, H, W)
+        target :  shape (N, H, W) ground truth
+        return:  loss_acw
+        """
+        pred = F.softmax(prediction, 1)
+        answer = np.zeros((target.shape[0], target.shape[2], target.shape[3]))
+        for i in range(target.shape[0]):
+            answer[i, :, :] = np.argmax(target[i, :, :, :].cpu().numpy(), axis=0)
+        answer = torch.from_numpy(answer.astype(np.int64)).to(target.device)
+
+        one_hot_label, mask = self.encode_one_hot_label(pred, answer)
+        acw = self.adaptive_class_weight(pred, one_hot_label, mask)
+
+        err = torch.pow((one_hot_label - pred), 2)
+        # one = torch.ones_like(err)
+
+        pnc = err - ((1. - err + self.eps) / (1. + err + self.eps)).log()
+        loss_pnc = torch.sum(acw * pnc, 1)
+
+
+        intersection = 2 * torch.sum(pred * one_hot_label, dim=(0, 2, 3)) + self.eps
+        union = pred + one_hot_label
+
+        if mask is not None:
+            union[mask] = 0
+
+        union = torch.sum(union, dim=(0, 2, 3)) + self.eps
+        dice = intersection / union
+
+        return loss_pnc.mean() - dice.mean().log()
+
+    def adaptive_class_weight(self, pred, one_hot_label, mask=None):
+        self.itr += 1
+
+        sum_class = torch.sum(one_hot_label, dim=(0, 2, 3))
+        sum_norm = sum_class / sum_class.sum()
+
+        self.weight = (self.weight * (self.itr - 1) + sum_norm) / self.itr
+        mfb = self.weight.mean() / (self.weight + self.eps)
+        mfb = mfb / mfb.sum()
+        acw = (1. + pred + one_hot_label) * mfb.unsqueeze(-1).unsqueeze(-1)
+
+        if mask is not None:
+            acw[mask] = 0
+
+        return acw
+
+    def encode_one_hot_label(self, pred, target):
+        one_hot_label = pred.detach() * 0
+        if self.ignore_index is not None:
+            mask = (target == self.ignore_index)
+            target = target.clone()
+            target[mask] = 0
+            one_hot_label.scatter_(1, target.unsqueeze(1), 1)
+            mask = mask.unsqueeze(1).expand_as(one_hot_label)
+            one_hot_label[mask] = 0
+            return one_hot_label, mask
+        else:
+            one_hot_label.scatter_(1, target.unsqueeze(1), 1)
+            return one_hot_label, None

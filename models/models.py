@@ -5,6 +5,7 @@ from .segmentation_models_pytorch.unet.decoder import UnetDecoder
 from .segmentation_models_pytorch.encoders import get_encoder
 from .segmentation_models_pytorch.base import SegmentationModel
 from .segmentation_models_pytorch.base import SegmentationHead, ClassificationHead
+import torchvision.models as models
 
 
 class Unet(SegmentationModel):
@@ -50,17 +51,17 @@ class Unet(SegmentationModel):
     """
 
     def __init__(
-        self,
-        encoder_name: str = "densenet121",
-        encoder_depth: int = 5,
-        encoder_weights: Optional[str] = "imagenet",
-        decoder_use_batchnorm: bool = True,
-        decoder_channels: List[int] = (1024, 512, 256, 128, 64),
-        decoder_attention_type: Optional[str] = None,
-        in_channels: int = 4,
-        out_channels: int = 6,
-        activation: Optional[Union[str, callable]] = None,
-        aux_params: Optional[dict] = None,
+            self,
+            encoder_name: str = "denset121",
+            encoder_depth: int = 5,
+            encoder_weights: Optional[str] = "imagenet",
+            decoder_use_batchnorm: bool = True,
+            decoder_channels: List[int] = (1024, 512, 256, 128, 64),
+            decoder_attention_type: Optional[str] = None,
+            in_channels: int = 4,
+            out_channels: int = 7,
+            activation: Optional[Union[str, callable]] = None,
+            aux_params: Optional[dict] = None,
     ):
         super().__init__()
         self.encoder = get_encoder(
@@ -95,76 +96,12 @@ class Unet(SegmentationModel):
 
         self.name = "u-{}".format(encoder_name)
         self.initialize()
+
     @classmethod
     def from_config(cls, model_config):
         return cls(**model_config.params)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class SmpUnet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=1, **kwargs):
-        super().__init__()
-        assert in_channels == 4, "Input should be 4"
-        unet_params = dict(
-            encoder_name="efficientnet-b7", encoder_weights="imagenet",
-            activation=None, in_channels=in_channels,
-            classes=out_channels
-        )
-        unet_params.update(kwargs)
-        print("Encoder", unet_params["encoder_name"])
-        #self.model = smp.Unet(**unet_params)
-
-    def forward(self, x):
-        return self.model(x)
-
-    def change_freeze_encoder(self, freeze=True):
-        for group in [
-            self.model.encoder.layer1,
-            self.model.encoder.layer2,
-            self.model.encoder.layer3,
-            self.model.encoder.layer4,
-        ]:
-            for p in group.parameters():
-                p.requires_grad = freeze
-
-    @classmethod
-    def from_config(cls, model_config):
-        return cls(model_config.params.in_channels, model_config.params.out_channels)
 
 
 class BADetectionNet(nn.Module):
@@ -202,7 +139,7 @@ class BADetectionNet(nn.Module):
         return cls(encoder, fc)
 
     @staticmethod
-    def create_fc_layers(input_size: int, hidden_size: list, output_size: int, p_dropout: float = 0.0):
+    def create_fc_layers(input_size: int, hidden_size: list, output_size: int, p_dropout: float = 0.2):
         hidden_size.insert(0, input_size)
 
         layers = []

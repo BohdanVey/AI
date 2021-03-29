@@ -6,6 +6,7 @@ from ..base import modules as md
 
 from ..encoders.SEBlock import SEBlock
 
+
 class DecoderBlock(nn.Module):
     def __init__(
             self,
@@ -16,12 +17,11 @@ class DecoderBlock(nn.Module):
             attention_type=None,
     ):
         super().__init__()
-        self.conv1 = md.Conv2dReLU(
+        self.conv1 = nn.ConvTranspose2d(
             in_channels + skip_channels,
             out_channels,
             kernel_size=3,
             padding=1,
-            use_batchnorm=use_batchnorm,
         )
         self.attention1 = md.Attention(attention_type, in_channels=in_channels + skip_channels)
         self.conv2 = md.Conv2dReLU(
@@ -32,6 +32,7 @@ class DecoderBlock(nn.Module):
             use_batchnorm=use_batchnorm,
         )
         self.attention2 = md.Attention(attention_type, in_channels=out_channels)
+        self.seblock = nn.Sequential(SEBlock(out_channels),SEBlock(out_channels),SEBlock(out_channels),SEBlock(out_channels))
 
     def forward(self, x, skip=None):
         x = F.interpolate(x, scale_factor=2, mode="nearest")
@@ -41,7 +42,7 @@ class DecoderBlock(nn.Module):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.attention2(x)
-        x = SEBlock(x.shape[-1],x.device)(x)
+        x = self.seblock(x)
         return x
 
 
@@ -54,6 +55,8 @@ class CenterBlock(nn.Sequential):
             padding=1,
             use_batchnorm=use_batchnorm,
         )
+        seblock = nn.Sequential(SEBlock(out_channels), SEBlock(out_channels), SEBlock(out_channels),
+                                SEBlock(out_channels))
         conv2 = md.Conv2dReLU(
             out_channels,
             out_channels,
@@ -61,7 +64,7 @@ class CenterBlock(nn.Sequential):
             padding=1,
             use_batchnorm=use_batchnorm,
         )
-        super().__init__(conv1, conv2)
+        super().__init__(conv1, conv2, seblock)
 
 
 class UnetDecoder(nn.Module):
@@ -101,6 +104,7 @@ class UnetDecoder(nn.Module):
 
         # combine decoder keyword arguments
         kwargs = dict(use_batchnorm=use_batchnorm, attention_type=attention_type)
+        print(in_channels, skip_channels)
         blocks = [
             DecoderBlock(in_ch, skip_ch, out_ch, **kwargs)
             for in_ch, skip_ch, out_ch in zip(in_channels, skip_channels, out_channels)
@@ -109,7 +113,7 @@ class UnetDecoder(nn.Module):
 
     def forward(self, *features):
 
-        features = features[1:]    # remove first skip with same spatial resolution
+        features = features[1:]  # remove first skip with same spatial resolution
         features = features[::-1]  # reverse channels to start from head of encoder
 
         head = features[0]

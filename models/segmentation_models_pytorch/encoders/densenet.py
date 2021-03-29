@@ -27,10 +27,14 @@ import re
 import torch.nn as nn
 
 from pretrainedmodels.models.torchvision_models import pretrained_settings
-from torchvision.models.densenet import DenseNet
-
 from ._base import EncoderMixin
 from .SEBlock import SEBlock
+import re
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from collections import OrderedDict
+from torchvision.models.densenet import *
 
 
 class TransitionWithSkip(nn.Module):
@@ -49,10 +53,17 @@ class TransitionWithSkip(nn.Module):
 
 class DenseNetEncoder(DenseNet, EncoderMixin):
     def __init__(self, out_channels, depth=5, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(drop_rate=0.4, **kwargs)
         self._out_channels = out_channels
         self._depth = depth
         self._in_channels = 4
+        self.seblock = []
+        self.features.seblock0 = nn.Sequential(SEBlock(96), SEBlock(96), SEBlock(96), SEBlock(96))
+        self.features.seblock1 = nn.Sequential(SEBlock(384), SEBlock(384), SEBlock(384), SEBlock(384))
+        self.features.seblock2 = nn.Sequential(SEBlock(768), SEBlock(768), SEBlock(768), SEBlock(768))
+        self.features.seblock3 = nn.Sequential(SEBlock(2112), SEBlock(2112), SEBlock(2112), SEBlock(2112))
+        self.features.seblock4 = nn.Sequential(SEBlock(2208), SEBlock(2208), SEBlock(2208), SEBlock(2208))
+
         del self.classifier
 
     def make_dilated(self, stage_list, dilation_list):
@@ -62,23 +73,24 @@ class DenseNetEncoder(DenseNet, EncoderMixin):
     def get_stages(self):
         return [
             nn.Identity(),
-            nn.Sequential(self.features.conv0, self.features.norm0, self.features.relu0),
-            nn.Sequential(self.features.pool0, self.features.denseblock1,
-                          TransitionWithSkip(self.features.transition1)),
-            nn.Sequential(self.features.denseblock2, TransitionWithSkip(self.features.transition2)),
-            nn.Sequential(self.features.denseblock3, TransitionWithSkip(self.features.transition3)),
-            nn.Sequential(self.features.denseblock4, self.features.norm5),
+            nn.Sequential(self.features.conv0, self.features.norm0, self.features.seblock0, self.features.relu0),
+            nn.Sequential(self.features.pool0, self.features.denseblock1, self.features.seblock1,
+                          TransitionWithSkip(self.features.transition1), ),
+            nn.Sequential(self.features.denseblock2, self.features.seblock2,
+                          TransitionWithSkip(self.features.transition2)),
+            nn.Sequential(self.features.denseblock3, self.features.seblock3,
+                          TransitionWithSkip(self.features.transition3)),
+            nn.Sequential(self.features.denseblock4, self.features.seblock4, self.features.norm5),
         ]
 
     def forward(self, x):
-
         stages = self.get_stages()
         features = []
         for i in range(self._depth + 1):
+
             x = stages[i](x)
             if isinstance(x, (list, tuple)):
                 x, skip = x
-                x = SEBlock(x.shape[1],device=x.device)(x)
                 features.append(skip)
             else:
                 features.append(x)
@@ -86,6 +98,7 @@ class DenseNetEncoder(DenseNet, EncoderMixin):
         return features
 
     def load_state_dict(self, state_dict):
+        return
         pattern = re.compile(
             r"^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
         )
@@ -108,7 +121,7 @@ densenet_encoders = {
         "encoder": DenseNetEncoder,
         "pretrained_settings": pretrained_settings["densenet121"],
         "params": {
-            "out_channels": (4, 64, 256, 512, 1024, 1024),
+            "out_channels": (3, 64, 256, 512, 1024, 1024),
             "num_init_features": 64,
             "growth_rate": 32,
             "block_config": (6, 12, 24, 16),
@@ -136,8 +149,9 @@ densenet_encoders = {
     },
     "densenet161": {
         "encoder": DenseNetEncoder,
+        "pretrained_settings": pretrained_settings["densenet161"],
         "params": {
-            "out_channels": (4, 64, 128, 256, 512, 1024),
+            "out_channels": (3, 96, 384, 768, 2112, 2208),
             "num_init_features": 96,
             "growth_rate": 48,
             "block_config": (6, 12, 36, 24),
