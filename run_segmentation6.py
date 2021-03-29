@@ -81,11 +81,11 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
         if (www % 100 == 5):
             for i in range(6):
                 if torch.unique(target[0][i]).shape[0] == 2:
-                    cv2.imwrite(f'train/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
-                    cv2.imwrite(f'train/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                    cv2.imwrite(f'train2/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
+                    cv2.imwrite(f'train2/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
                 else:
-                    cv2.imwrite(f'train/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
-                    cv2.imwrite(f'train/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                    cv2.imwrite(f'train2/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
+                    cv2.imwrite(f'train2/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
 
         www += 1
         w = calculate_iou6(target, output)
@@ -133,11 +133,11 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
             if (www % 100 == 99):
                 for i in range(6):
                     if torch.unique(target[0][i]).shape[0] == 2:
-                        cv2.imwrite(f'test/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
-                        cv2.imwrite(f'test/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                        cv2.imwrite(f'test2/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
+                        cv2.imwrite(f'test2/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
                     else:
-                        cv2.imwrite(f'test/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
-                        cv2.imwrite(f'test/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                        cv2.imwrite(f'test2/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
+                        cv2.imwrite(f'test2/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
 
             www += 1
 

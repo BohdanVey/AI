@@ -33,7 +33,7 @@ class SEBlock(nn.Module):
     def __init__(self,
                  channels,
                  device = "cuda:0",
-                 reduction=1,
+                 reduction=16,
                  approx_sigmoid=False,
                  activation=(lambda: nn.ReLU(inplace=True))):
         super(SEBlock, self).__init__()

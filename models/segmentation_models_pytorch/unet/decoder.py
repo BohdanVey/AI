@@ -32,7 +32,7 @@ class DecoderBlock(nn.Module):
             use_batchnorm=use_batchnorm,
         )
         self.attention2 = md.Attention(attention_type, in_channels=out_channels)
-        self.seblock = nn.Sequential(SEBlock(out_channels),SEBlock(out_channels),SEBlock(out_channels),SEBlock(out_channels))
+        self.seblock = nn.Sequential(SEBlock(out_channels))
 
     def forward(self, x, skip=None):
         x = F.interpolate(x, scale_factor=2, mode="nearest")
@@ -55,8 +55,7 @@ class CenterBlock(nn.Sequential):
             padding=1,
             use_batchnorm=use_batchnorm,
         )
-        seblock = nn.Sequential(SEBlock(out_channels), SEBlock(out_channels), SEBlock(out_channels),
-                                SEBlock(out_channels))
+        seblock = nn.Sequential(SEBlock(out_channels))
         conv2 = md.Conv2dReLU(
             out_channels,
             out_channels,

@@ -81,11 +81,11 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
         if (www % 100 == 99):
             for i in range(n):
                 if torch.unique(target[0][i]).shape[0] == 2:
-                    cv2.imwrite(f'test/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
-                    cv2.imwrite(f'test/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                    cv2.imwrite(f'train/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
+                    cv2.imwrite(f'train/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
                 else:
-                    cv2.imwrite(f'test/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
-                    cv2.imwrite(f'test/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                    cv2.imwrite(f'train/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
+                    cv2.imwrite(f'train/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
 
         www += 1
         w = calculate_iou(target, output)
@@ -135,11 +135,11 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, n=7):
             if (www % 100 == 99):
                 for i in range(n):
                     if torch.unique(target[0][i]).shape[0] == 2:
-                        cv2.imwrite(f'train/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
-                        cv2.imwrite(f'train/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                        cv2.imwrite(f'test/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
+                        cv2.imwrite(f'test/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
                     else:
-                        cv2.imwrite(f'train/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
-                        cv2.imwrite(f'train/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                        cv2.imwrite(f'test/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
+                        cv2.imwrite(f'test/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
 
             www += 1
 
@@ -172,7 +172,6 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, n=7):
 
 def test(model, test_loader, use_valid_masks, device, save_to, threshold=0.5):
     model.eval()
-
     with torch.no_grad():
         for data, meta in tqdm(test_loader):
             data = data.to(device).float()
@@ -255,8 +254,8 @@ def main():
 
     device = torch.device(config.device)
     model = make_model(config.model).to(device)
-
-    print("HERE")
+    pytorch_total_params = sum(p.numel() for p in model.parameters())
+    print(pytorch_total_params)
     scheduler = None
 
     loss_f = make_loss(config.loss)
@@ -277,7 +276,7 @@ def main():
     else:
         step = config.epochs * 2
     for epoch in range(1, config.epochs + 1):
-        print(f"Epoch {epoch + 1}")
+        print(f"Epoch {epoch}",int(epoch // step))
         optimizer = make_optimizer(config.optim, model.parameters(), int(epoch // step))
 
         if config.to_train == True:

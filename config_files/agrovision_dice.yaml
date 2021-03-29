@@ -1,6 +1,6 @@
 experiment_name: DenseNet161
 log_dir: ./experiments
-epochs: 30
+epochs: 40
 device: cuda:0
 seed: 10
 
@@ -32,7 +32,7 @@ train:
   loader:
     type: DataLoader
     params:
-      batch_size: 6
+      batch_size: 7
       num_workers: 3
       shuffle: True
       sampler: null
@@ -60,7 +60,7 @@ val:
   loader:
     type: DataLoader
     params:
-      batch_size: 4
+      batch_size: 7
       num_workers: 2
       shuffle: False
       sampler: null
@@ -83,7 +83,7 @@ test:
   loader:
     type: DataLoader
     params:
-      batch_size: 8
+      batch_size: 7
       num_workers: 2
       shuffle: False
       sampler: null
@@ -93,7 +93,7 @@ test:
 model:
   type: Unet
   save: True
-  load: /home/ocr/code/AgroVision2021/experiments/EfficientNetb4ACWLoss/best_checkpoint.pt
+  load: /home/ocr/code/AgroVision2021/experiments/DenseNet161New/last_checkpoint.pt
   params:
     in_channels: 4
     out_channels: 7

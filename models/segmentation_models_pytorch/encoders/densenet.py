@@ -53,16 +53,16 @@ class TransitionWithSkip(nn.Module):
 
 class DenseNetEncoder(DenseNet, EncoderMixin):
     def __init__(self, out_channels, depth=5, **kwargs):
-        super().__init__(drop_rate=0.4, **kwargs)
+        super().__init__(drop_rate=0.8, **kwargs)
         self._out_channels = out_channels
         self._depth = depth
         self._in_channels = 4
         self.seblock = []
-        self.features.seblock0 = nn.Sequential(SEBlock(96), SEBlock(96), SEBlock(96), SEBlock(96))
-        self.features.seblock1 = nn.Sequential(SEBlock(384), SEBlock(384), SEBlock(384), SEBlock(384))
-        self.features.seblock2 = nn.Sequential(SEBlock(768), SEBlock(768), SEBlock(768), SEBlock(768))
-        self.features.seblock3 = nn.Sequential(SEBlock(2112), SEBlock(2112), SEBlock(2112), SEBlock(2112))
-        self.features.seblock4 = nn.Sequential(SEBlock(2208), SEBlock(2208), SEBlock(2208), SEBlock(2208))
+        self.features.seblock0 = nn.Sequential(SEBlock(96))
+        self.features.seblock1 = nn.Sequential(SEBlock(384))
+        self.features.seblock2 = nn.Sequential(SEBlock(768))
+        self.features.seblock3 = nn.Sequential(SEBlock(2112))
+        self.features.seblock4 = nn.Sequential(SEBlock(2208))
 
         del self.classifier
 

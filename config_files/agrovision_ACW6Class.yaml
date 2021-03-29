@@ -1,6 +1,6 @@
 experiment_name: ACW_LossSGDUpdate6Class2
 log_dir: ./experiments
-epochs: 20
+epochs: 40
 device: cuda:1
 seed: 10
 
@@ -32,7 +32,7 @@ train:
   loader:
     type: DataLoader
     params:
-      batch_size: 10
+      batch_size: 7
       num_workers: 3
       shuffle: True
       sampler: null
@@ -60,7 +60,7 @@ val:
   loader:
     type: DataLoader
     params:
-      batch_size: 10
+      batch_size: 7
       num_workers: 2
       shuffle: False
       sampler: null
@@ -83,7 +83,7 @@ test:
   loader:
     type: DataLoader
     params:
-      batch_size: 8
+      batch_size: 7
       num_workers: 2
       shuffle: False
       sampler: null
@@ -97,7 +97,7 @@ model:
   params:
     in_channels: 4
     out_channels: 6
-
+    encoder_name: densenet161
 
 loss:
   type: ACW_loss
@@ -112,10 +112,12 @@ optim:
   type: SGD
   params:
     lr:
+      - 0.001
       - 0.0001
       - 0.00005
       - 0.00001
-    momentum: 0.8
+    momentum: 0.9
+
 stopper:
   params:
     patience: 12
