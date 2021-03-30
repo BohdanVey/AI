@@ -27,12 +27,11 @@ def calculate_iou(target, output):
 def calculate_iou6(target, output):
     out = nn.Sigmoid()(output).detach().cpu().numpy()
     tar = target.cpu().numpy()
-    ans = out > 0.5
+    ans = out > 0.2
 
     background = 1 - np.max(tar, axis=1)
     background = background.reshape((tar.shape[0], 1, tar.shape[2], tar.shape[3]))
     tar = np.concatenate((background, tar), axis=1)
-
     background = 1 - np.max(ans, axis=1)
     background = background.reshape((ans.shape[0], 1, ans.shape[2], ans.shape[3]))
     ans = np.concatenate((background, ans), axis=1)

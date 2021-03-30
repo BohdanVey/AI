@@ -1,6 +1,7 @@
 from . import datasets
 from . import transforms
 from . import aug
+from . import sampler
 
 
 def make_transforms(config):
@@ -40,11 +41,21 @@ def make_dataset(config):
     return dataset
 
 
-def make_data_loader(config, dataset):
+def make_sampler(sampl, data):
+    sampler_init = getattr(sampler, sampl)
+    loader = sampler_init.from_config(
+        data
+    )
+
+    return loader
+
+
+def make_data_loader(config, dataset,sampl = None):
     data_loader_init = getattr(datasets, config.type)
     loader = data_loader_init.from_config(
         config.params,
-        dataset
+        dataset,
+        sampl
     )
 
     return loader

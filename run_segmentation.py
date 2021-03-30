@@ -276,7 +276,8 @@ def main():
     else:
         step = config.epochs * 2
     for epoch in range(1, config.epochs + 1):
-        print(f"Epoch {epoch}",int(epoch // step))
+        loss_f = make_loss(config.loss)
+        print(f"Epoch {epoch}", int(epoch // step))
         optimizer = make_optimizer(config.optim, model.parameters(), int(epoch // step))
 
         if config.to_train == True:

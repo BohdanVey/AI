@@ -15,7 +15,7 @@ from metrics import make_metrics, AverageMetricsMeter, calculate_iou, calculate_
 from utils.early_stopping import EarlyStopping
 
 from models import make_model
-from datasets import make_dataset, make_data_loader
+from datasets import make_dataset, make_data_loader, make_sampler
 from losses import make_loss
 from optims import make_optimizer
 
@@ -79,13 +79,22 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
         target = target.to(device).float()
         output = model(data)
         if (www % 100 == 5):
-            for i in range(6):
-                if torch.unique(target[0][i]).shape[0] == 2:
-                    cv2.imwrite(f'train2/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
-                    cv2.imwrite(f'train2/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
+            out = nn.Sigmoid()(output).detach().cpu().numpy()
+            out = out > 0.5
+            tar = target.cpu().numpy()
+            background = 1 - np.max(tar, axis=1)
+            background = background.reshape((tar.shape[0], 1, tar.shape[2], tar.shape[3]))
+            tar = np.concatenate((background, tar), axis=1)
+            background = 1 - np.max(out, axis=1)
+            background = background.reshape((out.shape[0], 1, out.shape[2], out.shape[3]))
+            out = np.concatenate((background, out), axis=1)
+            for i in range(7):
+                if np.unique(tar[0][i]).shape[0] == 2:
+                    cv2.imwrite(f'train2/{i}/target_not_empty{www}.png', tar[0][i] * 255)
+                    cv2.imwrite(f'train2/{i}/output_not_empty{www}.png', out[0][i] * 255)
                 else:
-                    cv2.imwrite(f'train2/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
-                    cv2.imwrite(f'train2/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                    cv2.imwrite(f'train2/{i}/target{www}.png', tar[0][i] * 255)
+                    cv2.imwrite(f'train2/{i}/output{www}.png', out[0][i] * 255)
 
         www += 1
         w = calculate_iou6(target, output)
@@ -130,14 +139,23 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
             target = target.to(device).float()
 
             output = model(data)
-            if (www % 100 == 99):
-                for i in range(6):
-                    if torch.unique(target[0][i]).shape[0] == 2:
-                        cv2.imwrite(f'test2/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
-                        cv2.imwrite(f'test2/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
+            if (www % 100 == 4):
+                out = nn.Sigmoid()(output).detach().cpu().numpy()
+                out = out > 0.2
+                tar = target.cpu().numpy()
+                background = 1 - np.max(tar, axis=1)
+                background = background.reshape((tar.shape[0], 1, tar.shape[2], tar.shape[3]))
+                tar = np.concatenate((background, tar), axis=1)
+                background = 1 - np.max(out, axis=1)
+                background = background.reshape((out.shape[0], 1, out.shape[2], out.shape[3]))
+                out = np.concatenate((background, out), axis=1)
+                for i in range(7):
+                    if np.unique(tar[0][i]).shape[0] == 2:
+                        cv2.imwrite(f'test2/{i}/target_not_empty{www}.png', tar[0][i] * 255)
+                        cv2.imwrite(f'test2/{i}/output_not_empty{www}.png', out[0][i] * 255)
                     else:
-                        cv2.imwrite(f'test2/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
-                        cv2.imwrite(f'test2/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
+                        cv2.imwrite(f'test2/{i}/target{www}.png', tar[0][i] * 255)
+                        cv2.imwrite(f'test2/{i}/output{www}.png', out[0][i] * 255)
 
             www += 1
 
@@ -169,7 +187,7 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
     return metrics
 
 
-def test(model, test_loader, use_valid_masks, device, save_to, threshold=0.5):
+def test(model, test_loader, use_valid_masks, device, save_to, threshold=0.2):
     model.eval()
 
     with torch.no_grad():
@@ -220,9 +238,9 @@ def main():
 
     init_experiment(config)
     set_random_seed(config.seed)
-
     train_dataset = make_dataset(config.train.dataset)
-    train_loader = make_data_loader(config.train.loader, train_dataset)
+    train_sampler = make_sampler(config.train.loader.params.sampler, config.train.dataset)
+    train_loader = make_data_loader(config.train.loader, train_dataset,train_sampler)
 
     val_dataset = make_dataset(config.val.dataset)
     val_loader = make_data_loader(config.val.loader, val_dataset)
@@ -232,7 +250,6 @@ def main():
     device = torch.device(config.device)
     model = make_model(config.model).to(device)
 
-    print("HERE")
     scheduler = None
 
     loss_f = make_loss(config.loss)
@@ -254,11 +271,16 @@ def main():
         step = config.epochs * 2
     for epoch in range(1, config.epochs + 1):
         print(f"Epoch {epoch + 1}")
-        optimizer = make_optimizer(config.optim, model.parameters(), int(epoch // step))
 
-        train_metrics = train(model, optimizer, train_loader, loss_f, metrics, use_valid_masks_train, device)
-        write_metrics(epoch, train_metrics, train_writer)
-        print_metrics('Train', train_metrics)
+        optimizer = make_optimizer(config.optim, model.parameters(), int(epoch // step))
+        if config.to_train:
+            try:
+                train_sampler.randomize()
+            except:
+                print("ERROR TO RANDOMIZE")
+            train_metrics = train(model, optimizer, train_loader, loss_f, metrics, use_valid_masks_train, device)
+            write_metrics(epoch, train_metrics, train_writer)
+            print_metrics('Train', train_metrics)
 
         val_metrics = val(model, val_loader, loss_f, metrics, use_valid_masks_val, device)
         loss = val_metrics['loss']

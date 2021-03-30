@@ -1,1 +1,1 @@
-from torch.optim import Adam,SGD  # noqa
+from torch.optim import *  # noqa

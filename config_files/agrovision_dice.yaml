@@ -1,10 +1,10 @@
-experiment_name: DenseNet161
+experiment_name: DenseNet161New
 log_dir: ./experiments
 epochs: 40
 device: cuda:0
 seed: 10
 
-to_train: True
+to_train: False
 train:
 
   dataset:
@@ -93,7 +93,7 @@ test:
 model:
   type: Unet
   save: True
-  load: /home/ocr/code/AgroVision2021/experiments/DenseNet161New/last_checkpoint.pt
+  load: /home/ocr/code/AgroVision2021/experiments/DenseNet161/last_checkpoint.pt
   params:
     in_channels: 4
     out_channels: 7

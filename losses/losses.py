@@ -351,7 +351,7 @@ class ACW_loss(nn.Module):
 
         err = torch.pow((one_hot_label - pred), 2)
         # one = torch.ones_like(err)
-
+        # TODO REMOVE POWER
         pnc = err - ((1. - err + self.eps) / (1. + err + self.eps)).log()
         loss_pnc = torch.sum(acw * pnc, 1)
 
