@@ -118,8 +118,8 @@ class AgroVision2021Dataset(AgroSegmentationDataset):
 
         image = np.array((r, g, b, nir)).transpose((1, 2, 0))
         bg = 1 - np.max((cs, dp, ps, sw, ww, wc), axis=0)
-        # labels = np.array((bg, cs, dp, ps, sw, ww, wc)).transpose((1, 2, 0))
-        labels = np.array((cs, dp, ps, sw, ww, wc)).transpose((1, 2, 0))
+        labels = np.array((bg, cs, dp, ps, sw, ww, wc)).transpose((1, 2, 0))
+        #labels = np.array((cs, dp, ps, sw, ww, wc)).transpose((1, 2, 0))
 
         # intentionally commented
         if self.augmentations:

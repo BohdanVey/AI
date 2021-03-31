@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-
 def dice_loss(input, target):
     smooth = 1.
 
@@ -58,8 +57,6 @@ class WrappedBinaryLogDice(nn.Module):
             else:
                 v = v + self.cl_run(input[:, cl], target[:, cl])
         return v.sum()
-
-
 
 
 class ImageBinaryLogDice(nn.Module):
@@ -223,7 +220,6 @@ class FixedMultiLabelCrossEntropyMaskGradSpec(nn.Module):
         pixelnum = mask.sum((1, 2)).unsqueeze(-1)  # res -> (B, 1)
         should_use_grad = (truth.sum((2, 3)) > 0).float()
         pixelnum = (pixelnum * should_use_grad).sum(0)  # res -> (C)
-        pixelnum = torch.clamp(pixelnum, min=1.0)
         loss = (loss * mask.unsqueeze(1))
         loss = (loss * should_use_grad.unsqueeze(-1).unsqueeze(-1)).sum((0, 2, 3)) / pixelnum
         return loss.sum()
@@ -301,7 +297,7 @@ class WeightedLogDice(nn.Module):
 
 
 class LogDiceAndFocalLoss(nn.Module):
-    def __init__(self, dice_weight=2.0, focal_weight=4.0):
+    def __init__(self, dice_weight=1.0, focal_weight=3.0):
         super().__init__()
         self.logdice = WeightedLogDice()
         self.focal = FixedBinaryFocalWrapped()
@@ -310,31 +306,18 @@ class LogDiceAndFocalLoss(nn.Module):
 
     def forward(self, input, target, mask):
         return self.logdice(input, target) * self.dice_weight + self.focal_weight * self.focal(input, target,
-                                                                                                     mask)
-
-
-
-
-
-
-
-
-
-
-
-
-
+                                                                                               mask)
 
 
 class ACW_loss(nn.Module):
-    def __init__(self,  ini_weight=0, ini_iteration=0, eps=1e-5, ignore_index=255):
+    def __init__(self, ini_weight=0, ini_iteration=0, eps=1e-5, ignore_index=255):
         super(ACW_loss, self).__init__()
         self.ignore_index = ignore_index
         self.weight = ini_weight
         self.itr = ini_iteration
         self.eps = eps
 
-    def forward(self, prediction, target, valid_mask = None):
+    def forward(self, prediction, target, valid_mask=None):
         """
         pred :    shape (N, C, H, W)
         target :  shape (N, H, W) ground truth
@@ -354,7 +337,6 @@ class ACW_loss(nn.Module):
         # TODO REMOVE POWER
         pnc = err - ((1. - err + self.eps) / (1. + err + self.eps)).log()
         loss_pnc = torch.sum(acw * pnc, 1)
-
 
         intersection = 2 * torch.sum(pred * one_hot_label, dim=(0, 2, 3)) + self.eps
         union = pred + one_hot_label
@@ -396,3 +378,6 @@ class ACW_loss(nn.Module):
         else:
             one_hot_label.scatter_(1, target.unsqueeze(1), 1)
             return one_hot_label, None
+
+
+

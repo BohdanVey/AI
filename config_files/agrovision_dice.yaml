@@ -1,10 +1,10 @@
-experiment_name: DenseNet161New
+experiment_name: ACW_LossSGDSampler7ChannelResnext101
 log_dir: ./experiments
-epochs: 40
+epochs: 10
 device: cuda:0
-seed: 10
+seed: 15
 
-to_train: False
+to_train: True
 train:
 
   dataset:
@@ -34,8 +34,8 @@ train:
     params:
       batch_size: 7
       num_workers: 3
-      shuffle: True
-      sampler: null
+      shuffle: False
+      sampler: DataSampler
   use_valid_masks: True
 
 
@@ -67,7 +67,7 @@ val:
   use_valid_masks: True
 
 test:
-  save_to: /datasets/vey/agrovision/sub_2
+  save_to: /datasets/vey/agrovision/sub_1
   dataset:
     type: AgroVision2021DatasetTest
     params:
@@ -93,11 +93,11 @@ test:
 model:
   type: Unet
   save: True
-  load: /home/ocr/code/AgroVision2021/experiments/DenseNet161/last_checkpoint.pt
+  load: /home/ocr/code/AgroVision2021/experiments/ACW_LossSGDSampler7Channel/best_checkpoint.pt
   params:
     in_channels: 4
     out_channels: 7
-    encoder_name: densenet161
+    encoder_name: se_resnext101_32x4d
 
 loss:
   type: ACW_loss
@@ -109,13 +109,14 @@ metrics:
       threshold: 0.5
 
 optim:
-  type: SGD
+  type: Adam
   params:
     lr:
       - 0.0001
       - 0.00005
       - 0.00001
-    momentum: 0.9
+
+
 stopper:
   params:
     patience: 12

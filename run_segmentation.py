@@ -9,17 +9,19 @@ import random
 from tqdm import tqdm
 import torch
 from torch.utils.tensorboard import SummaryWriter
+import seaborn as sn
 
 from config import get_config
-from metrics import make_metrics, AverageMetricsMeter, calculate_iou
+from metrics import make_metrics, AverageMetricsMeter, calculate_iou, calculate_confusion_matrix
 from utils.early_stopping import EarlyStopping
 
 from models import make_model
-from datasets import make_dataset, make_data_loader
+from datasets import make_dataset, make_data_loader, make_sampler
 from losses import make_loss
 from optims import make_optimizer
 
 import torch.nn as nn
+import matplotlib.pyplot as plt
 
 
 def set_random_seed(seed):
@@ -31,8 +33,12 @@ def set_random_seed(seed):
 
 def print_metrics(phase, metrics):
     loss = metrics.pop('loss')
-
     loss_log_str = '{:6}loss: {:.6f}'.format(phase, loss)
+    try:
+        confusion_matrix = metrics.pop('confusion_matrix')
+        print("Confusion matrix:\n", confusion_matrix, '\n\n')
+    except:
+        pass
     other_metrics_log_str = ' '.join([
         '{}: {:.6f}'.format(k, v)
         for k, v in metrics.items()
@@ -42,9 +48,22 @@ def print_metrics(phase, metrics):
     print(f'{loss_log_str} {other_metrics_log_str}')
 
 
+def write_confusion_matrix(writer, conf_mat, step):
+    fig = plt.figure()
+    conf_mat = conf_mat / conf_mat.max() * 100
+    sn.heatmap(conf_mat, annot=True)
+
+    writer.add_figure('confusion_matrix', fig, step)
+
+
 def write_metrics(epoch, metrics, writer):
+    confusion_matrix = metrics['confusion_matrix']
+    write_confusion_matrix(writer, confusion_matrix, step=epoch)
     for k, v in metrics.items():
-        writer.add_scalar(f'metrics/{k}', v, epoch)
+        try:
+            writer.add_scalar(f'metrics/{k}', v, epoch)
+        except:
+            pass
 
 
 def init_experiment(config):
@@ -74,11 +93,14 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
     metrics = defaultdict(lambda: 0)
     intersection = np.zeros(n)
     union = np.zeros(n)
+    metrics['confusion_matrix'] = np.zeros((7, 7))
     for data, target, meta in tqdm(train_loader):
         data = data.to(device).float()
         target = target.to(device).float()
         output = model(data)
-        if (www % 100 == 99):
+        #metrics['confusion_matrix'] += calculate_confusion_matrix(target, output)
+        if www % 100 == 10:
+            return metrics
             for i in range(n):
                 if torch.unique(target[0][i]).shape[0] == 2:
                     cv2.imwrite(f'train/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
@@ -111,7 +133,8 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
         x = meter[i].get_metrics()
         metrics['iou_score ' + str(i)] = intersection[i] / union[i]
         metrics['average_iou'] += intersection[i] / union[i] / 7
-
+    # To add
+    metrics['F1_score'] = 0
     print(intersection / union)
 
     return metrics
@@ -125,13 +148,14 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, n=7):
     www = 0
     intersection = np.zeros(n)
     union = np.zeros(n)
+    metrics['confusion_matrix'] = np.zeros((7, 7))
     with torch.no_grad():
         for data, target, meta in tqdm(val_loader):
 
             data = data.to(device).float()
             target = target.to(device).float()
-
             output = model(data)
+            #metrics['confusion_matrix'] += calculate_confusion_matrix(target, output)
             if (www % 100 == 99):
                 for i in range(n):
                     if torch.unique(target[0][i]).shape[0] == 2:
@@ -204,7 +228,7 @@ def parse_args():
 
 
 def clear_files():
-    for i in range(0, 6):
+    for i in range(0, 7):
         folder = f'test/{i}'
         for filename in os.listdir(folder):
             file_path = os.path.join(folder, filename)
@@ -245,7 +269,8 @@ def main():
     set_random_seed(config.seed)
 
     train_dataset = make_dataset(config.train.dataset)
-    train_loader = make_data_loader(config.train.loader, train_dataset)
+    train_sampler = make_sampler(config.train.loader.params.sampler, config.train.dataset)
+    train_loader = make_data_loader(config.train.loader, train_dataset, train_sampler)
 
     val_dataset = make_dataset(config.val.dataset)
     val_loader = make_data_loader(config.val.loader, val_dataset)

@@ -74,13 +74,16 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
     metrics = defaultdict(lambda: 0)
     intersection = np.zeros(7)
     union = np.zeros(7)
+    dataset_length = 0
+    confusion_matrix = np.zeros((7, 7))
+
     for data, target, meta in tqdm(train_loader):
         data = data.to(device).float()
         target = target.to(device).float()
         output = model(data)
         if (www % 100 == 5):
             out = nn.Sigmoid()(output).detach().cpu().numpy()
-            out = out > 0.5
+            out = out > 0.7
             tar = target.cpu().numpy()
             background = 1 - np.max(tar, axis=1)
             background = background.reshape((tar.shape[0], 1, tar.shape[2], tar.shape[3]))
@@ -109,11 +112,9 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
         batch_size = target.shape[0]
-
+        dataset_length += batch_size
         metrics['loss'] += loss.item() * batch_size
-    dataset_length = len(train_loader.dataset)
     metrics['loss'] /= dataset_length
     metrics['average_iou'] = 0
     for i in range(7):
@@ -141,7 +142,7 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
             output = model(data)
             if (www % 100 == 4):
                 out = nn.Sigmoid()(output).detach().cpu().numpy()
-                out = out > 0.2
+                out = (out > 0.7) * out
                 tar = target.cpu().numpy()
                 background = 1 - np.max(tar, axis=1)
                 background = background.reshape((tar.shape[0], 1, tar.shape[2], tar.shape[3]))
@@ -187,7 +188,7 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
     return metrics
 
 
-def test(model, test_loader, use_valid_masks, device, save_to, threshold=0.2):
+def test(model, test_loader, use_valid_masks, device, save_to, threshold=0.5):
     model.eval()
 
     with torch.no_grad():
@@ -240,7 +241,7 @@ def main():
     set_random_seed(config.seed)
     train_dataset = make_dataset(config.train.dataset)
     train_sampler = make_sampler(config.train.loader.params.sampler, config.train.dataset)
-    train_loader = make_data_loader(config.train.loader, train_dataset,train_sampler)
+    train_loader = make_data_loader(config.train.loader, train_dataset, train_sampler)
 
     val_dataset = make_dataset(config.val.dataset)
     val_loader = make_data_loader(config.val.loader, val_dataset)
@@ -249,7 +250,8 @@ def main():
 
     device = torch.device(config.device)
     model = make_model(config.model).to(device)
-
+    pytorch_total_params = sum(p.numel() for p in model.parameters())
+    print(pytorch_total_params)
     scheduler = None
 
     loss_f = make_loss(config.loss)

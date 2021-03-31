@@ -16,7 +16,6 @@ class DataSampler(Sampler):
         self.bucket = []
         for i in range(6):
             self.bucket.append([])
-        print(csv_file)
         self.csv_path = pd.read_csv(csv_file.params.csv_path)
         self.labels_path = csv_file.params.labels_path
         for item in range(len(self.csv_path)):
@@ -48,8 +47,8 @@ class DataSampler(Sampler):
 
     def generate_array(self):
         el = 0
-        maxi = max([len(x) for x in self.bucket])
-        self.weights = [3, 3, 5, 1, 2, 2]
+        # [815, 931, 270, 8890, 1769, 1761]
+        self.weights = [3, 3, 4, 1, 2, 2]
         self.arr = []
         for i in range(6):
             for x in self.bucket[i]:
@@ -58,21 +57,17 @@ class DataSampler(Sampler):
         random.shuffle(self.arr)
         self.bucket = []
 
+    def __iter__(self):
+        return iter(self.arr)
 
-def __iter__(self):
-    return iter(self.arr)
+    def __len__(self):
+        return len(self.arr)
 
+    def randomize(self):
+        random.shuffle(self.arr)
 
-def __len__(self):
-    return len(self.arr)
-
-
-def randomize(self):
-    random.shuffle(self.arr)
-
-
-@classmethod
-def from_config(cls, data):
-    return cls(
-        csv_file=data
-    )
+    @classmethod
+    def from_config(cls, data):
+        return cls(
+            csv_file=data
+        )

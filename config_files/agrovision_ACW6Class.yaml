@@ -1,8 +1,8 @@
-experiment_name: ACW_LossSGDUpdate6Class
+experiment_name: ACW_LossSGDSampler
 log_dir: ./experiments
 epochs: 10
 device: cuda:1
-seed: 10
+seed: 15
 
 to_train: True
 train:
@@ -25,7 +25,9 @@ train:
             params: null
 
 
-      augmentations: None
+      augmentations:
+        type:
+          - flip
 
   loader:
     type: DataLoader
@@ -93,14 +95,14 @@ test:
 model:
   type: Unet
   save: True
-  load: /home/ocr/code/AgroVision2021/experiments/ACW_LossSGDUpdate63Class2/best_checkpoint.pt
+  load: /home/ocr/code/AgroVision2021/experiments/ACW_LossSGDSampler2/best_checkpoint.pt
   params:
     in_channels: 4
     out_channels: 6
-    encoder_name: densenet161
+    encoder_name: se_resnext101_32x4d
 
 loss:
-  type: ACW_loss
+  type: LogDiceAndFocalLoss
   params: null
 
 metrics:
@@ -109,10 +111,9 @@ metrics:
       threshold: 0.5
 
 optim:
-  type: SGD
+  type: Adam
   params:
     lr:
-      - 0.00001
       - 0.00005
       - 0.00001
 
