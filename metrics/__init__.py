@@ -45,5 +45,4 @@ def calculate_iou6(target, output):
 def calculate_confusion_matrix(target, output):
     target_matrix = torch.argmax(target, dim=1).cpu()
     output_matrix = torch.argmax(output, dim=1).detach().cpu()
-
     return sklearn.metrics.confusion_matrix(target_matrix.reshape(-1), output_matrix.reshape(-1),labels=range(7))

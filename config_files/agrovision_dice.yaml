@@ -1,7 +1,7 @@
 experiment_name: ACW_LossSGDSampler7ChannelResnext101
 log_dir: ./experiments
-epochs: 10
-device: cuda:0
+epochs: 9
+device: cuda:1
 seed: 15
 
 to_train: True
@@ -29,13 +29,15 @@ train:
         type:
           - flip
           - brightness
+          - grid_mask
+          - random_aug
   loader:
     type: DataLoader
     params:
-      batch_size: 7
+      batch_size: 10
       num_workers: 3
-      shuffle: False
-      sampler: DataSampler
+      shuffle: True
+      sampler: null
   use_valid_masks: True
 
 
@@ -93,7 +95,7 @@ test:
 model:
   type: Unet
   save: True
-  load: /home/ocr/code/AgroVision2021/experiments/ACW_LossSGDSampler7Channel/best_checkpoint.pt
+  load: /home/ocr/code/AgroVision2021/experiments/ACW_LossSGDSampler7ChannelResnext101New/best_checkpoint.pt
   params:
     in_channels: 4
     out_channels: 7
@@ -112,10 +114,8 @@ optim:
   type: Adam
   params:
     lr:
-      - 0.0001
-      - 0.00005
-      - 0.00001
-
+    - 0.00001
+    weight_decay: 0.0005
 
 stopper:
   params:

@@ -1,11 +1,13 @@
 from albumentations import (
     HorizontalFlip, VerticalFlip, ShiftScaleRotate, Rotate,
     RandomScale, RandomContrast, RandomBrightness, RandomBrightnessContrast, OneOf, Compose, RandomGamma, VerticalFlip,
-    HorizontalFlip, PadIfNeeded, RandomCrop, RGBShift,
+    HorizontalFlip, PadIfNeeded, RandomCrop, RGBShift, ChannelDropout
 )
 from torchvision import datasets, transforms
 import albumentations as A
 import cv2
+from .RandomAugMix import RandomAugMix
+from .GridMask import GridMask
 
 transformations = {
     'flip': [A.VerticalFlip(p=0.2),
@@ -13,7 +15,15 @@ transformations = {
              A.RandomRotate90(p=0.2)],
     'brightness': [A.OneOf([
         A.RandomBrightness(p=0.5),
-        A.RandomBrightnessContrast(p=0.5)], p = 0.7)]
+        A.RandomBrightnessContrast(p=0.5)], p=0.7)],
+    'resize_small': [A.Resize(64, 64, p=1)],
+    'resize_medium': [A.Resize(128, 128, p=1)],
+    'resize_big': [A.Resize(256, 256, p=1)],
+    'random_aug': [RandomAugMix(p=0.3)],  # Doesn't work for segmentation, already work))
+    'grid_mask': [A.OneOf([GridMask(num_grid=1), GridMask(num_grid=2),
+                           GridMask(num_grid=3), GridMask(num_grid=4)], p=0.2)],
+    'channel_dropout': [ChannelDropout(channel_drop_range=(1, 1), p=0.05)],
+    'gauss': [A.OneOf([A.GaussNoise(), A.GaussianBlur()], p=0.1)]
 }
 
 

@@ -24,18 +24,19 @@ train:
           ToTorchFloat:
             params: null
 
-
       augmentations:
         type:
           - flip
-
+          - random_aug
+          - grid_mask
+          - brigtness
   loader:
     type: DataLoader
     params:
       batch_size: 7
       num_workers: 3
-      shuffle: False
-      sampler: DataSampler
+      shuffle: True
+      sampler: null
   use_valid_masks: True
 
 
@@ -56,9 +57,7 @@ val:
             params: null
           ToTorchFloat:
             params: null
-      augmentations:
-        type:
-          - flip
+      augmentations: None
   loader:
     type: DataLoader
     params:
@@ -102,7 +101,7 @@ model:
     encoder_name: se_resnext101_32x4d
 
 loss:
-  type: LogDiceAndFocalLoss
+  type: ACW_Loss
   params: null
 
 metrics:

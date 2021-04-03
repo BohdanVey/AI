@@ -55,7 +55,7 @@ class Unet(SegmentationModel):
             encoder_name: str = "denset121",
             encoder_depth: int = 5,
             encoder_weights: Optional[str] = "imagenet",
-            decoder_use_batchnorm: bool = True,
+            decoder_usez_batchnorm: bool = True,
             decoder_channels: List[int] = (1024, 512, 256, 128, 64),
             decoder_attention_type: Optional[str] = None,
             in_channels: int = 4,
@@ -139,7 +139,7 @@ class BADetectionNet(nn.Module):
         return cls(encoder, fc)
 
     @staticmethod
-    def create_fc_layers(input_size: int, hidden_size: list, output_size: int, p_dropout: float = 0.2):
+    def create_fc_layers(input_size: int, hidden_size: list, output_size: int, p_dropout: float = 0.5):
         hidden_size.insert(0, input_size)
 
         layers = []

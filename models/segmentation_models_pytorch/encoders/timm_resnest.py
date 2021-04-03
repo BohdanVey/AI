@@ -3,7 +3,6 @@ from timm.models.resnet import ResNet
 from timm.models.resnest import ResNestBottleneck
 import torch.nn as nn
 
-
 class ResNestEncoder(ResNet, EncoderMixin):
     def __init__(self, out_channels, depth=5, **kwargs):
         super().__init__(**kwargs)

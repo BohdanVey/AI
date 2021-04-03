@@ -140,7 +140,7 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device):
             target = target.to(device).float()
 
             output = model(data)
-            if (www % 100 == 4):
+            if www % 100 == 4:
                 out = nn.Sigmoid()(output).detach().cpu().numpy()
                 out = (out > 0.7) * out
                 tar = target.cpu().numpy()
@@ -284,12 +284,15 @@ def main():
             write_metrics(epoch, train_metrics, train_writer)
             print_metrics('Train', train_metrics)
 
-        val_metrics = val(model, val_loader, loss_f, metrics, use_valid_masks_val, device)
+        val_metrics = val(model, val_loader, loss_f, metrics, use_valid_masks_val, device, config.to_train)
         loss = val_metrics['loss']
         write_metrics(epoch, val_metrics, val_writer)
         print_metrics('Val', val_metrics)
         early_stopping(val_metrics['loss'])
-        test(model, test_loader, True, device, save_to)
+        test(model, test_loader, True, device, save_to, config.to_train)
+        if not config.to_train:
+            # ! If we just test we need only one epoch
+            return
         if config.model.save and early_stopping.counter == 0:
             if loss < best_loss:
                 print("Saved")

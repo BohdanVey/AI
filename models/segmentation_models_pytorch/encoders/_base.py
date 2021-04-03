@@ -19,10 +19,9 @@ class EncoderMixin:
 
     def set_in_channels(self, in_channels):
         """Change first convolution channels"""
+        self._in_channels = in_channels
         if in_channels == 3:
             return
-
-        self._in_channels = in_channels
         if self._out_channels[0] == 3:
             self._out_channels = tuple([in_channels] + list(self._out_channels)[1:])
 

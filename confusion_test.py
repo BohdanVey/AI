@@ -6,11 +6,12 @@ from torch.utils.tensorboard import SummaryWriter
 import os
 import cv2
 import torchvision
+import seaborn as sn
 
 def plot_to_tensorboard(writer, conf_mat, step):
 
     fig = plt.figure()
-    sn.heatmap(conf_mat, annot=True)
+    sn.heatmap(conf_mat / conf_mat.max(), annot=True)
 
     writer.add_figure('confusion_matrix', fig,step)
 

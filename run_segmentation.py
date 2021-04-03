@@ -23,12 +23,24 @@ from optims import make_optimizer
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
+import ttach as tta
+
 
 def set_random_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
+
+def tta_transform():
+    return tta.Compose(
+        [
+            tta.HorizontalFlip(),
+            tta.VerticalFlip(),
+            tta.Rotate90(angles=[0, 90, 180, 270]),
+        ]
+    )
 
 
 def print_metrics(phase, metrics):
@@ -98,9 +110,8 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
         data = data.to(device).float()
         target = target.to(device).float()
         output = model(data)
-        #metrics['confusion_matrix'] += calculate_confusion_matrix(target, output)
-        if www % 100 == 10:
-            return metrics
+        metrics['confusion_matrix'] += calculate_confusion_matrix(target, output)
+        if www % 100 == 99:
             for i in range(n):
                 if torch.unique(target[0][i]).shape[0] == 2:
                     cv2.imwrite(f'train/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
@@ -140,7 +151,7 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
     return metrics
 
 
-def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, n=7):
+def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, to_train, n=7):
     model.eval()
 
     meter = [AverageMetricsMeter(metric_fns, device) for _ in range(7)]
@@ -149,13 +160,18 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, n=7):
     intersection = np.zeros(n)
     union = np.zeros(n)
     metrics['confusion_matrix'] = np.zeros((7, 7))
+
+    if not to_train:
+        tta_model = tta.SegmentationTTAWrapper(model, tta_transform(), merge_mode='mean')
+    else:
+        tta_model = model
     with torch.no_grad():
         for data, target, meta in tqdm(val_loader):
 
             data = data.to(device).float()
             target = target.to(device).float()
-            output = model(data)
-            #metrics['confusion_matrix'] += calculate_confusion_matrix(target, output)
+            output = tta_model(data)
+            metrics['confusion_matrix'] += calculate_confusion_matrix(target, output)
             if (www % 100 == 99):
                 for i in range(n):
                     if torch.unique(target[0][i]).shape[0] == 2:
@@ -194,12 +210,16 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, n=7):
     return metrics
 
 
-def test(model, test_loader, use_valid_masks, device, save_to, threshold=0.5):
+def test(model, test_loader, use_valid_masks, device, save_to, to_train):
     model.eval()
+    if not to_train:
+        tta_model = tta.SegmentationTTAWrapper(model, tta_transform(), merge_mode='mean ')
+    else:
+        tta_model = model
     with torch.no_grad():
         for data, meta in tqdm(test_loader):
             data = data.to(device).float()
-            output = model(data)
+            output = tta_model(data)
             if use_valid_masks:
                 valid_mask = meta["valid_pixels_mask"].to(device)
             else:
@@ -269,6 +289,7 @@ def main():
     set_random_seed(config.seed)
 
     train_dataset = make_dataset(config.train.dataset)
+    print(config.train)
     train_sampler = make_sampler(config.train.loader.params.sampler, config.train.dataset)
     train_loader = make_data_loader(config.train.loader, train_dataset, train_sampler)
 
@@ -281,6 +302,7 @@ def main():
     model = make_model(config.model).to(device)
     pytorch_total_params = sum(p.numel() for p in model.parameters())
     print(pytorch_total_params)
+
     scheduler = None
 
     loss_f = make_loss(config.loss)
@@ -296,29 +318,31 @@ def main():
     use_valid_masks_val = config.train.use_valid_masks
     save_to = config.test.save_to
     best_loss = 1000000
-    if len(config.optim.params.lr) != 1:
-        step = config.epochs / (len(config.optim.params.lr) - 1)
+    if config.optim.params.get('lr', False) and len(config.optim.params.lr) != 1:
+        step = config.epochs / (len(config.optim.params.lr))
     else:
         step = config.epochs * 2
     for epoch in range(1, config.epochs + 1):
         loss_f = make_loss(config.loss)
-        print(f"Epoch {epoch}", int(epoch // step))
-        optimizer = make_optimizer(config.optim, model.parameters(), int(epoch // step))
+        print(f"Epoch {epoch}", int(epoch // step), step, epoch)
+        optimizer = make_optimizer(config.optim, model.parameters(), epoch,step)
 
-        if config.to_train == True:
+        if config.to_train:
             train_metrics = train(model, optimizer, train_loader, loss_f, metrics, use_valid_masks_train, device,
                                   config.model.params.out_channels)
             write_metrics(epoch, train_metrics, train_writer)
             print_metrics('Train', train_metrics)
 
         val_metrics = val(model, val_loader, loss_f, metrics, use_valid_masks_val, device,
-                          config.model.params.out_channels)
+                          config.to_train, config.model.params.out_channels)
         loss = val_metrics['loss']
         write_metrics(epoch, val_metrics, val_writer)
         print_metrics('Val', val_metrics)
         early_stopping(val_metrics['loss'])
-        test(model, test_loader, True, device, save_to, 0.6)
+        test(model, test_loader, True, device, save_to, config.to_train)
         torch.save(model.state_dict(), config.model.last_checkpoint_path)
+        if not config.to_train:
+            return
         if config.model.save and early_stopping.counter == 0:
             if loss < best_loss:
                 print("Saved")

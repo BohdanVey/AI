@@ -163,7 +163,7 @@ senet_encoders = {
             "layers": [3, 4, 23, 3],
             "downsample_kernel_size": 1,
             "downsample_padding": 0,
-            "dropout_p": None,
+            "dropout_p": 0.5,
             "groups": 32,
             "inplanes": 64,
             "input_3x3": False,

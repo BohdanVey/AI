@@ -42,11 +42,14 @@ def make_dataset(config):
 
 
 def make_sampler(sampl, data):
-    sampler_init = getattr(sampler, sampl)
-    loader = sampler_init.from_config(
-        data
-    )
-
+    try:
+        sampler_init = getattr(sampler, sampl)
+        loader = sampler_init.from_config(
+            data
+        )
+    except:
+        return None
+    print(loader)
     return loader
 
 

@@ -6,6 +6,13 @@ import cv2
 from albumentations import Normalize
 
 
+class MixUp(object):
+    def __call__(self, image1, image2, alpha):
+        r, g, b, nir, vpm, sw, cs, ps, wc, ww, dp = (image1 * alpha + image2 * (1 - alpha)).astype(
+            image1.dtype)
+        return r, g, b, nir, vpm, sw, cs, ps, wc, ww, dp
+
+
 class FromNumpy(object):
     def __call__(self, image):
         if not isinstance(image, np.ndarray):

@@ -55,7 +55,7 @@ class CenterBlock(nn.Sequential):
             padding=1,
             use_batchnorm=use_batchnorm,
         )
-        seblock = nn.Sequential(SEBlock(out_channels))
+        seblock = nn.Sequential(SEBlock(out_channels,reduction = 4))
         conv2 = md.Conv2dReLU(
             out_channels,
             out_channels,

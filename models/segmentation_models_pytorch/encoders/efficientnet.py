@@ -38,9 +38,9 @@ class EfficientNetEncoder(EfficientNet, EncoderMixin):
         self._stage_idxs = stage_idxs
         self._out_channels = out_channels
         self._depth = depth
-        self._in_channels = 4
+        self._in_channels = 5
         self.seblocks = []
-        self.channels = [4,48,32,32,4]
+        self.channels = [5, 48, 32, 32, 4]
         for i in range(depth):
             self.seblocks.append(SEBlock(self.channels[i]))
         del self._fc
@@ -74,7 +74,6 @@ class EfficientNetEncoder(EfficientNet, EncoderMixin):
                     drop_connect = drop_connect_rate * block_number / len(self._blocks)
                     block_number += 1.
                     x = module(x, drop_connect)
-
 
             features.append(x)
 

@@ -1,13 +1,8 @@
-def fn(x, y):
-    return 108.0 - (815.0 - 1500.0 / y) / x
+def make_optimizer(i):
+    base_lr = 0.00001
+    max_lr = 0.00011
+    step = 4
 
 
-x = 4
-y = 4.25
-while True:
-    z = y
-    y = fn(y, x)
-    x = z
-    print(y)
-    if x == 100:
-        break
+for i in range(1, 10):
+    print(make_optimizer(i))
