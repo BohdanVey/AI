@@ -48,7 +48,8 @@ def make_sampler(sampl, data):
             data
         )
     except:
-        return None
+        print("NONE")
+        return
     print(loader)
     return loader
 

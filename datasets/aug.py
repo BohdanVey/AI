@@ -23,7 +23,7 @@ transformations = {
     'grid_mask': [A.OneOf([GridMask(num_grid=1), GridMask(num_grid=2),
                            GridMask(num_grid=3), GridMask(num_grid=4)], p=0.2)],
     'channel_dropout': [ChannelDropout(channel_drop_range=(1, 1), p=0.05)],
-    'gauss': [A.OneOf([A.GaussNoise(), A.GaussianBlur()], p=0.1)]
+    'gauss': [A.OneOf([A.GaussianBlur()], p=0.1)]
 }
 
 

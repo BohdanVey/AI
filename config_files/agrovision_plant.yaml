@@ -1,10 +1,10 @@
-experiment_name: Train
+experiment_name: DoubleModel
 log_dir: ./experiments
-epochs: 9
+epochs: 15
 device: cuda:0
 seed: 15
 
-to_train: False
+to_train: True
 train:
 
   dataset:
@@ -37,7 +37,7 @@ train:
       batch_size: 8
       num_workers: 3
       shuffle: False
-      sampler: DataSampler
+      sampler: null
   use_valid_masks: False
 
 
@@ -69,7 +69,7 @@ val:
   use_valid_masks: True
 
 test:
-  save_to: /datasets/vey/agrovision/sub_2
+  save_to: /datasets/vey/agrovision/sub_1
   dataset:
     type: AgroVision2021DatasetTest
     params:
@@ -90,9 +90,7 @@ test:
       shuffle: False
       sampler: null
   use_valid_masks: True
-
-
-model:
+model_1:
   type: Unet
   save: True
   load: /home/ocr/code/AgroVision2021/experiments/New/best_checkpoint.pt
@@ -100,6 +98,21 @@ model:
     in_channels: 4
     out_channels: 7
     encoder_name: se_resnext101_32x4d
+
+model_2:
+  type: Unet
+  save: True
+  load: /home/ocr/code/AgroVision2021/experiments/ACW_LossSGDSamplerPlant/best_checkpoint.pt
+  params:
+    in_channels: 4
+    out_channels: 7
+    encoder_name: se_resnet50
+    decoder_channels:
+      - 256
+      - 128
+      - 64
+      - 32
+      - 16
 
 loss:
   type: ACW_loss
@@ -113,8 +126,8 @@ metrics:
 optim:
   type: Adam
   params:
-    base_lr: 0.000001
-    max_lr: 0.000011
+    base_lr: 0.00001
+    max_lr: 0.00011
     step: 4
     weight_decay: 0.0005
 

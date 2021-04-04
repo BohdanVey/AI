@@ -98,61 +98,9 @@ def init_experiment(config):
         config.dump(stream=dest_file)
 
 
-def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, device, n=7):
-    model.train()
-    www = 0
-    meter = [AverageMetricsMeter(metric_fns, device) for _ in range(7)]
-    metrics = defaultdict(lambda: 0)
-    intersection = np.zeros(n)
-    union = np.zeros(n)
-    metrics['confusion_matrix'] = np.zeros((7, 7))
-    for data, target, meta in tqdm(train_loader):
-        data = data.to(device).float()
-        target = target.to(device).float()
-        output = model(data)
-        metrics['confusion_matrix'] += calculate_confusion_matrix(target, output)
-        if www % 100 == 99:
-            for i in range(n):
-                if torch.unique(target[0][i]).shape[0] == 2:
-                    cv2.imwrite(f'train/{i}/target_not_empty{www}.png', target[0][i].cpu().numpy() * 255)
-                    cv2.imwrite(f'train/{i}/output_not_empty{www}.png', output[0][i].detach().cpu().numpy() * 255)
-                else:
-                    cv2.imwrite(f'train/{i}/target{www}.png', target[0][i].cpu().numpy() * 255)
-                    cv2.imwrite(f'train/{i}/output{www}.png', output[0][i].detach().cpu().numpy() * 255)
-
-        www += 1
-        w = calculate_iou(target, output)
-        intersection += w[0]
-        union += w[1]
-        if use_valid_masks:
-            valid_mask = meta["valid_pixels_mask"].to(device)
-        else:
-            valid_mask = torch.ones_like(meta["valid_pixels_mask"]).to(device)
-        loss = loss_f(output, target, valid_mask)
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        batch_size = target.shape[0]
-        metrics['loss'] += loss.item() * batch_size
-    dataset_length = len(train_loader.dataset)
-    metrics['loss'] /= dataset_length
-    metrics['average_iou'] = 0
-
-    for i in range(n):
-        x = meter[i].get_metrics()
-        metrics['iou_score ' + str(i)] = intersection[i] / union[i]
-        metrics['average_iou'] += intersection[i] / union[i] / 7
-    # To add
-    metrics['F1_score'] = 0
-    print(intersection / union)
-
-    return metrics
-
-
-def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, to_train, n=7):
-    model.eval()
+def val(model_1, model_2, val_loader, loss_f, metric_fns, use_valid_masks, device, to_train, n=7):
+    model_1.eval()
+    model_2.eval()
     meter = [AverageMetricsMeter(metric_fns, device) for _ in range(7)]
     metrics = defaultdict(lambda: 0)
     www = 0
@@ -160,16 +108,17 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, to_train
     union = np.zeros(n)
     metrics['confusion_matrix'] = np.zeros((7, 7))
 
-    if not to_train:
-        tta_model = tta.SegmentationTTAWrapper(model, tta_transform(), merge_mode='max')
-    else:
-        tta_model = model
+    tta_model_1 = tta.SegmentationTTAWrapper(model_1, tta_transform(), merge_mode='mean')
+    tta_model_2 = tta.SegmentationTTAWrapper(model_2, tta_transform(), merge_mode='mean')
     with torch.no_grad():
         for data, target, meta in tqdm(val_loader):
 
             data = data.to(device).float()
             target = target.to(device).float()
-            output = tta_model(data)
+            output = tta_model_1(data)
+            output_2 = tta_model_2(data)
+            output[:, 2, :, :] = output_2[:, 2, :, :]
+            output[:, 3, :, :] = output_2[:, 3, :, :]
             metrics['confusion_matrix'] += calculate_confusion_matrix(target, output)
             if (www % 100 == 99):
                 for i in range(n):
@@ -209,16 +158,19 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, to_train
     return metrics
 
 
-def test(model, test_loader, use_valid_masks, device, save_to, to_train):
-    model.eval()
-    if not to_train:
-        tta_model = tta.SegmentationTTAWrapper(model, tta_transform(), merge_mode='max')
-    else:
-        tta_model = model
+def test(model_1,model_2, test_loader, use_valid_masks, device, save_to, to_train):
+    model_1.eval()
+    model_2.eval()
+    tta_model_1 = tta.SegmentationTTAWrapper(model_1, tta_transform(), merge_mode='mean')
+    tta_model_2 = tta.SegmentationTTAWrapper(model_2, tta_transform(), merge_mode='min')
     with torch.no_grad():
         for data, meta in tqdm(test_loader):
+
             data = data.to(device).float()
-            output = tta_model(data)
+            output = tta_model_1(data)
+            output_2 = tta_model_2(data)
+            output[:, 2, :, :] = output_2[:, 2, :, :]
+            output[:, 3, :, :] = output_2[:, 3, :, :]
             if use_valid_masks:
                 valid_mask = meta["valid_pixels_mask"].to(device)
             else:
@@ -279,8 +231,6 @@ def main():
     config.defrost()
     config.experiment_dir = os.path.join(config.log_dir, config.experiment_name)
     config.tb_dir = os.path.join(config.experiment_dir, 'tb')
-    config.model.best_checkpoint_path = os.path.join(config.experiment_dir, 'best_checkpoint.pt')
-    config.model.last_checkpoint_path = os.path.join(config.experiment_dir, 'last_checkpoint.pt')
     config.config_save_path = os.path.join(config.experiment_dir, 'segmentation_config.yaml')
     config.freeze()
 
@@ -293,14 +243,16 @@ def main():
 
     val_dataset = make_dataset(config.val.dataset)
     val_sampler = make_sampler(config.val.loader.params.sampler, config.val.dataset)
-
+    print("READY")
     val_loader = make_data_loader(config.val.loader, val_dataset, val_sampler)
     test_dataset = make_dataset(config.test.dataset)
     test_loader = make_data_loader(config.test.loader, test_dataset)
 
     device = torch.device(config.device)
-    model = make_model(config.model).to(device)
-    pytorch_total_params = sum(p.numel() for p in model.parameters())
+    model_1 = make_model(config.model_1).to(device)
+    model_2 = make_model(config.model_2).to(device)
+    pytorch_total_params = sum(p.numel() for p in model_1.parameters())
+    pytorch_total_params += sum(p.numel() for p in model_2.parameters())
     print(pytorch_total_params)
 
     scheduler = None
@@ -317,55 +269,8 @@ def main():
     use_valid_masks_train = config.train.use_valid_masks
     use_valid_masks_val = config.train.use_valid_masks
     save_to = config.test.save_to
-    best_loss = 1000000
-    if config.optim.params.get('lr', False) and len(config.optim.params.lr) != 1:
-        step = config.epochs / (len(config.optim.params.lr))
-    else:
-        step = config.epochs * 2
-    for epoch in range(1, config.epochs + 1):
-        loss_f = make_loss(config.loss)
-        print(f"Epoch {epoch}", int(epoch // step), step, epoch)
-        optimizer = make_optimizer(config.optim, model.parameters(), epoch, step)
-
-        if config.to_train:
-            train_metrics = train(model, optimizer, train_loader, loss_f, metrics, use_valid_masks_train, device,
-                                  config.model.params.out_channels)
-            write_metrics(epoch, train_metrics, train_writer)
-            print_metrics('Train', train_metrics)
-
-        val_metrics = val(model, val_loader, loss_f, metrics, use_valid_masks_val, device,
-                          config.to_train, config.model.params.out_channels)
-        loss = val_metrics['loss']
-        write_metrics(epoch, val_metrics, val_writer)
-        print_metrics('Val', val_metrics)
-        early_stopping(val_metrics['loss'])
-        test(model, test_loader, True, device, save_to, config.to_train)
-        torch.save(model.state_dict(), config.model.last_checkpoint_path)
-        if not config.to_train:
-            return
-        if config.model.save and early_stopping.counter == 0:
-            if loss < best_loss:
-                print("Saved")
-                best_loss = min(loss, best_loss)
-                print(loss, best_loss)
-
-                torch.save(model.state_dict(), config.model.best_checkpoint_path)
-                print('Saved best model checkpoint to disk.')
-        else:
-            print("Loss start growing")
-        if early_stopping.early_stop:
-            print(f'Early stopping after {epoch} epochs.')
-            break
-
-        if scheduler:
-            scheduler.step()
-
-    train_writer.close()
-    val_writer.close()
-
-    if config.model.save:
-        torch.save(model.state_dict(), config.model.last_checkpoint_path)
-        print('Saved last model checkpoint to disk.')
+    loss_f = make_loss(config.loss)
+    test(model_1, model_2, test_loader, True, device, save_to, config.to_train)
 
 
 if __name__ == '__main__':
