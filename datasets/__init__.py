@@ -11,14 +11,14 @@ def make_transforms(config):
     ])
 
 
-def make_augmentations(config):
+def make_augmentations(config, epoch=100):
     augmentations = []
     if config == "None": return
-    augs = aug.Augmentation(config.type)
+    augs = aug.Augmentation(config.type, epoch)
     return augs
 
 
-def make_dataset(config):
+def make_dataset(config, epoch=100):
     dataset_params = config.params
     transforms_config = dataset_params.pop('transforms')
     augmentations_config = dataset_params.pop('augmentations')
@@ -28,7 +28,9 @@ def make_dataset(config):
     except:
         print("TEST DATASET")
         target_transforms = None
-    augmentations = make_augmentations(augmentations_config) if augmentations_config else None
+    dataset_params['transforms'] = transforms_config
+    dataset_params['augmentations'] = augmentations_config
+    augmentations = make_augmentations(augmentations_config, epoch) if augmentations_config else None
 
     dataset_init = getattr(datasets, config.type)
     dataset = dataset_init.from_config(
@@ -54,7 +56,7 @@ def make_sampler(sampl, data):
     return loader
 
 
-def make_data_loader(config, dataset,sampl = None):
+def make_data_loader(config, dataset, sampl=None):
     data_loader_init = getattr(datasets, config.type)
     loader = data_loader_init.from_config(
         config.params,

@@ -113,9 +113,7 @@ def val(model, val_loader, loss_f, device, use_valid_masks, threshold=0.5):
     with torch.no_grad():
         for data, target, meta in tqdm(val_loader):
             data = data.to(device).float()[:, :3, :, :]
-
             target = target.to(device).float()
-
             output = model(data)
             if use_valid_masks:
                 valid_mask = meta["valid_pixels_mask"].to(device)

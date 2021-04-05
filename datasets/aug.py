@@ -29,12 +29,18 @@ transformations = {
 
 class Augmentation:
     # TODO Rewrite as mapping dictionary and Compose function
-    def __init__(self, augs):
+    def __init__(self, augs, epoch=100):
         augmentation = []
         for aug in augs:
             for x in transformations[aug]:
                 augmentation.append(x)
-
+        if epoch <= 5:
+            augmentation.append(transformations['resize_small'][0])
+        elif epoch <= 8:
+            augmentation.append(transformations['resize_medium'][0])
+        elif epoch <= 11:
+            augmentation.append(transformations['resize_big'][0])
+        print(augmentation)
         self.aug = A.Compose(augmentation, p=1, additional_targets={"valid_mask": "mask"})
 
     def __call__(self, img, mask, valid_mask):

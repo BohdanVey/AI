@@ -32,7 +32,7 @@ class SEBlock(nn.Module):
 
     def __init__(self,
                  channels,
-                 device = "cuda:0",
+                 device = "cuda:1",
                  reduction=16,
                  approx_sigmoid=False,
                  activation=(lambda: nn.ReLU(inplace=True))):

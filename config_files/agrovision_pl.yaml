@@ -1,10 +1,10 @@
-experiment_name: TrainImageResizeSe2
+experiment_name: TrainPL
 log_dir: ./experiments
-epochs: 20
-device: cuda:1
+epochs: 15
+device: cuda:0
 seed: 15
 
-to_train: True
+to_train: False
 train:
 
   dataset:
@@ -34,10 +34,10 @@ train:
   loader:
     type: DataLoader
     params:
-      batch_size: 7
+      batch_size: 8
       num_workers: 3
       shuffle: False
-      sampler: DataSample
+      sampler: DataSampler
   use_valid_masks: False
 
 
@@ -95,11 +95,11 @@ test:
 model:
   type: Unet
   save: True
-  load: /home/ocr/code/AgroVision2021/experiments/TrainImageResizeSe/best_checkpoint.pt
+  load: /home/ocr/code/AgroVision2021/experiments/New/best_checkpoint.pt
   params:
     in_channels: 4
     out_channels: 7
-    encoder_name: timm-res2net101_26w_4s
+    encoder_name: se_resnext101_32x4d
 
 loss:
   type: ACW_loss
@@ -113,8 +113,8 @@ metrics:
 optim:
   type: Adam
   params:
-    base_lr: 0.00001
-    max_lr: 0.00011
+    base_lr: 0.000001
+    max_lr: 0.000011
     step: 4
     weight_decay: 0.0005
 

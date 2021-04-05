@@ -5,9 +5,7 @@ def make_optimizer(config, model_parameters, i,step):
     optimizer_type = getattr(optims, config.type)
     try:
         now = int(i // step)
-
         lr = config.params.pop('lr')
-
         optimizer = optimizer_type(
             model_parameters,
             lr=lr[now],
@@ -15,7 +13,6 @@ def make_optimizer(config, model_parameters, i,step):
         )
         config.params['lr'] = lr
         return optimizer
-
     except:  # We use cyclic learning rate
         base_lr = config.params.pop('base_lr')
         max_lr = config.params.pop('max_lr')

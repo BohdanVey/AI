@@ -16,6 +16,7 @@ def make_metrics(config):
 
 
 def calculate_iou(target, output):
+    # TODO REWRITE THIS
     out = nn.Sigmoid()(output).detach().cpu().numpy()
     tar = target.cpu().numpy()
     ans = out > 0.5

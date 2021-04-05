@@ -13,7 +13,6 @@ class Unet(SegmentationModel):
     and *decoder* parts connected with *skip connections*. Encoder extract features of different spatial
     resolution (skip connections) which are used by decoder to define accurate segmentation mask. Use *concatenation*
     for fusing decoder blocks with skip connections.
-
     Args:
         encoder_name: Name of the classification model that will be used as an encoder (a.k.a backbone)
             to extract features of different spatial resolution
@@ -41,13 +40,10 @@ class Unet(SegmentationModel):
                 - pooling (str): One of "max", "avg". Default is "avg"
                 - dropout (float): Dropout factor in [0, 1)
                 - activation (str): An activation function to apply "sigmoid"/"softmax" (could be **None** to return logits)
-
     Returns:
         ``torch.nn.Module``: Unet
-
     .. _Unet:
         https://arxiv.org/abs/1505.04597
-
     """
 
     def __init__(
@@ -55,7 +51,7 @@ class Unet(SegmentationModel):
             encoder_name: str = "denset121",
             encoder_depth: int = 5,
             encoder_weights: Optional[str] = "imagenet",
-            decoder_usez_batchnorm: bool = True,
+            decoder_use_batchnorm: bool = True,
             decoder_channels: List[int] = (1024, 512, 256, 128, 64),
             decoder_attention_type: Optional[str] = None,
             in_channels: int = 4,

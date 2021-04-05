@@ -144,8 +144,6 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
         x = meter[i].get_metrics()
         metrics['iou_score ' + str(i)] = intersection[i] / union[i]
         metrics['average_iou'] += intersection[i] / union[i] / 7
-    # To add
-    metrics['F1_score'] = 0
     print(intersection / union)
 
     return metrics
@@ -204,7 +202,7 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, to_train
     metrics['average_iou'] = 0
     for i in range(n):
         x = meter[i].get_metrics()
-        metrics['iou_score ' + str(i)] = intersection[i] / union[i]
+        metrics['iou_score' + str(i)] = intersection[i] / union[i]
         metrics['average_iou'] += intersection[i] / union[i] / 7
     return metrics
 
@@ -287,10 +285,6 @@ def main():
     init_experiment(config)
     set_random_seed(config.seed)
 
-    train_dataset = make_dataset(config.train.dataset)
-    train_sampler = make_sampler(config.train.loader.params.sampler, config.train.dataset)
-    train_loader = make_data_loader(config.train.loader, train_dataset, train_sampler)
-
     val_dataset = make_dataset(config.val.dataset)
     val_sampler = make_sampler(config.val.loader.params.sampler, config.val.dataset)
 
@@ -301,7 +295,7 @@ def main():
     device = torch.device(config.device)
     model = make_model(config.model).to(device)
     pytorch_total_params = sum(p.numel() for p in model.parameters())
-    print(pytorch_total_params)
+    print("Total number of parameters: ",pytorch_total_params)
 
     scheduler = None
 
@@ -323,16 +317,18 @@ def main():
     else:
         step = config.epochs * 2
     for epoch in range(1, config.epochs + 1):
-        loss_f = make_loss(config.loss)
+        train_dataset = make_dataset(config.train.dataset, epoch)
+        train_sampler = make_sampler(config.train.loader.params.sampler, config.train.dataset)
+        train_loader = make_data_loader(config.train.loader, train_dataset, train_sampler)
         print(f"Epoch {epoch}", int(epoch // step), step, epoch)
         optimizer = make_optimizer(config.optim, model.parameters(), epoch, step)
-
         if config.to_train:
             train_metrics = train(model, optimizer, train_loader, loss_f, metrics, use_valid_masks_train, device,
                                   config.model.params.out_channels)
             write_metrics(epoch, train_metrics, train_writer)
             print_metrics('Train', train_metrics)
-
+        if epoch <= 6:
+            continue
         val_metrics = val(model, val_loader, loss_f, metrics, use_valid_masks_val, device,
                           config.to_train, config.model.params.out_channels)
         loss = val_metrics['loss']

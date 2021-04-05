@@ -46,6 +46,16 @@ class DataSampler(Sampler):
             sampler_weights_file.write(str(self.arr[i]) + '\n')
         sampler_weights_file.close()
 
+        # [931, 1761, 270, 815, 1769, 8890]
+        self.weights = [3, 2, 4, 3, 2, 1]
+        self.arr = []
+        for i in range(6):
+            for x in self.bucket[i]:
+                for j in range(self.weights[i]):
+                    self.arr.append(x)
+        random.shuffle(self.arr)
+        self.bucket = []
+        print(len(self.arr))
 
     def __iter__(self):
         return iter(self.arr)
