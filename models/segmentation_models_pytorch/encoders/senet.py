@@ -79,7 +79,7 @@ senet_encoders = {
         "params": {
             "out_channels": (3, 128, 256, 512, 1024, 2048),
             "block": SEBottleneck,
-            "dropout_p": 0.2,
+            "dropout_p": 0.5,
             "groups": 64,
             "layers": [3, 8, 36, 3],
             "num_classes": 1000,

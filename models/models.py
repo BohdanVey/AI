@@ -52,7 +52,7 @@ class Unet(SegmentationModel):
             encoder_depth: int = 5,
             encoder_weights: Optional[str] = "imagenet",
             decoder_use_batchnorm: bool = True,
-            decoder_channels: List[int] = (1024, 512, 256, 128, 64),
+            decoder_channels: List[int] = (1024, 512, 256,128,64),
             decoder_attention_type: Optional[str] = None,
             in_channels: int = 4,
             out_channels: int = 7,

@@ -1,12 +1,11 @@
-experiment_name: DenseNetSeBlocksTest
+experiment_name: ResNetFocal2
 log_dir: ./experiments
-epochs: 30
-device: cuda:0
-seed: 1
+epochs: 20
+device: cuda:1
+seed: 15
 
-
+to_train: True
 train:
-
   dataset:
     type: AgroVision2021Dataset
     params:
@@ -27,19 +26,21 @@ train:
 
       augmentations:
         type:
+          - crop
           - flip
-
+          - grid_mask
   loader:
     type: DataLoader
     params:
-      batch_size: 12
-      num_workers: 3
-      shuffle: True
-      sampler: null
-  use_valid_masks: True
+      batch_size: 15
+      num_workers: 8
+      shuffle: False
+      sampler: DataSampler
+  use_valid_masks: False
 
 
 val:
+  strip: 256
   dataset:
     type: AgroVision2021Dataset
     params:
@@ -60,14 +61,15 @@ val:
   loader:
     type: DataLoader
     params:
-      batch_size: 4
+      batch_size: 12
       num_workers: 2
-      shuffle: False
+      shuffle: True
       sampler: null
   use_valid_masks: True
 
 test:
-  save_to: /datasets/vey/agrovision/sub_1
+  strip: 256
+  save_to: /datasets/vey/agrovision/sub_2
   dataset:
     type: AgroVision2021DatasetTest
     params:
@@ -83,24 +85,28 @@ test:
   loader:
     type: DataLoader
     params:
-      batch_size: 8
+      batch_size: 4
       num_workers: 2
       shuffle: False
       sampler: null
   use_valid_masks: True
 
-
 model:
   type: Unet
   save: True
-  load: /home/ocr/code/AgroVision2021/experiments/DenseNetSeBlocks/best_checkpoint.pt
+  load: /home/ocr/code/AgroVision2021/experiments/ResNetFocal/last_checkpoint.pt
   params:
     in_channels: 4
-    out_channels: 6
-
-
+    out_channels: 7
+    encoder_name: se_resnext101_32x4d
+    decoder_channels:
+      - 1024
+      - 512
+      - 256
+      - 128
+      - 64
 loss:
-  type: FixedMultiLabelCrossEntropyMask
+  type: MultiLabelCrossEntropyMask
   params: null
 
 metrics:
@@ -112,8 +118,10 @@ optim:
   type: Adam
   params:
     lr:
-      - 0.0005
-      - 0.0001
+      - 0.00001
+      - 0.000001
+    weight_decay: 0.0005
+
 stopper:
   params:
     patience: 12

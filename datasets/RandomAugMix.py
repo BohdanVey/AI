@@ -1,14 +1,6 @@
-import os
-import cv2
 import numpy as np
-import pandas as pd
-import albumentations
 from PIL import Image, ImageOps, ImageEnhance
 from albumentations.core.transforms_interface import ImageOnlyTransform
-from albumentations.augmentations import functional as F
-import matplotlib.pyplot as plt
-import torch
-from torch.utils.data import TensorDataset, DataLoader, Dataset
 
 
 def int_parameter(level, maxval):
@@ -168,7 +160,7 @@ def augment_and_mix(image, severity=3, width=3, depth=-1, alpha=1.):
         depth = depth if depth > 0 else np.random.randint(1, 4)
         for _ in range(depth):
             op = np.random.choice(augmentations)
-            image_aug[:, :, :3] = apply_op(image_aug[:, :, :3], op, severity)
+            image_aug = apply_op(image_aug, op, severity)
         # Preprocessing commutes since all coefficients are convex
         mix += ws[i] * image_aug
     #         mix += ws[i] * normalize(image_aug)
@@ -180,7 +172,7 @@ def augment_and_mix(image, severity=3, width=3, depth=-1, alpha=1.):
 
 class RandomAugMix(ImageOnlyTransform):
 
-    def __init__(self, severity=3, width=3, depth=-1, alpha=1., always_apply=False, p=0.5):
+    def __init__(self, severity=5, width=3, depth=-1, alpha=1., always_apply=False, p=0.5):
         super().__init__(always_apply, p)
         self.severity = severity
         self.width = width

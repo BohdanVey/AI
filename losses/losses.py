@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+
+
 def dice_loss(input, target):
     smooth = 1.
 
@@ -330,13 +332,15 @@ class ACW_loss(nn.Module):
         answer = torch.from_numpy(answer.astype(np.int64)).to(target.device)
 
         one_hot_label, mask = self.encode_one_hot_label(pred, answer)
+
         acw = self.adaptive_class_weight(pred, one_hot_label, mask)
 
         err = torch.pow((one_hot_label - pred), 2)
         # one = torch.ones_like(err)
         pnc = err - ((1. - err + self.eps) / (1. + err + self.eps)).log()
-        loss_pnc = torch.sum(acw * pnc, 1)
-
+        loss_pnc = acw * pnc * valid_mask.unsqueeze(1)
+        loss_pnc = torch.sum(loss_pnc, 1)
+        one_hot_label = one_hot_label * valid_mask.unsqueeze(1)
         intersection = 2 * torch.sum(pred * one_hot_label, dim=(0, 2, 3)) + self.eps
         union = pred + one_hot_label
 
@@ -345,7 +349,6 @@ class ACW_loss(nn.Module):
 
         union = torch.sum(union, dim=(0, 2, 3)) + self.eps
         dice = intersection / union
-
         return loss_pnc.mean() - dice.mean().log()
 
     def adaptive_class_weight(self, pred, one_hot_label, mask=None):
@@ -361,7 +364,6 @@ class ACW_loss(nn.Module):
 
         if mask is not None:
             acw[mask] = 0
-
         return acw
 
     def encode_one_hot_label(self, pred, target):
@@ -377,6 +379,3 @@ class ACW_loss(nn.Module):
         else:
             one_hot_label.scatter_(1, target.unsqueeze(1), 1)
             return one_hot_label, None
-
-
-

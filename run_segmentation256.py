@@ -108,6 +108,32 @@ def save_files(to, target, output, idx):
             cv2.imwrite(f'{to}/{i}/output{idx}.png', output[0][i].detach().cpu().numpy() * 255)
 
 
+def crop_image(data, strip=128):
+    k = 256 // strip + 1
+    data1 = torch.zeros(size=(data.shape[0] * k * k, data.shape[1], 256, 256))
+    for i in range(data.shape[0]):
+        for d in range(k * k):
+            data1[k * k * i + d, :, :, :] = data[i, :, 128 * (d % k):256 + 128 * (d % k),
+                                            128 * (d // k):256 + 128 * (d // k)]
+
+    return data1
+
+
+def uncrop_image(data, strip=128):
+    k = 256 // strip + 1
+    data1 = torch.zeros(size=(data.shape[0] // (k * k), data.shape[1], 512, 512)).to(data.device)
+    for i in range(0, data.shape[0], k * k):
+        to = i // (k * k)
+        for d in range(k * k):
+            data1[to, :, 128 * (d % k):256 + 128 * (d % k),
+            128 * (d // k):256 + 128 * (d // k)], _ = torch.max(torch.cat((data[i + d].unsqueeze(0),
+                                                                           data1[to, :,
+                                                                           128 * (d % k):256 + 128 * (d % k),
+                                                                           128 * (d // k):256 + 128 * (
+                                                                                   d // k)].unsqueeze(0)), dim=0),
+                                                                dim=0)
+    return data1
+
 
 def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, device, n=10):
     model.train()
@@ -118,9 +144,11 @@ def train(model, optimizer, train_loader, loss_f, metric_fns, use_valid_masks, d
     union = torch.zeros(n)
     metrics['confusion_matrix'] = torch.zeros((n, n))
     for data, target, meta in tqdm(train_loader):
+        data = crop_image(data, 256)
         data = data.to(device).float()
         target = target.to(device).float()
         output = model(data)
+        output = uncrop_image(output, 256)
         # metrics['confusion_matrix'] += calculate_confusion_matrix(target, output)
         if (www % 100 == 2):
             save_files('train', target, output, www)
@@ -165,9 +193,11 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, to_train
 
     with torch.no_grad():
         for data, target, meta in tqdm(val_loader):
+            data = crop_image(data, strip)
             data = data.to(device).float()
             target = target.to(device).float()
             output = tta_model(data)
+            output = uncrop_image(output, strip)
             # metrics['confusion_matrix'] += calculate_confusion_matrix(target, output)
             if (www % 100 == 2):
                 save_files('test', target, output, www)
@@ -196,7 +226,7 @@ def val(model, val_loader, loss_f, metric_fns, use_valid_masks, device, to_train
     for i in range(n):
         x = meter[i].get_metrics()
         metrics['iou_score' + str(i)] = intersection[i] / union[i]
-        metrics['average_iou'] += intersection[i] / union[i] / n
+        metrics['average_iou'] += intersection[i] / union[i] / 10
     return metrics
 
 
@@ -208,8 +238,10 @@ def test(model, test_loader, use_valid_masks, device, save_to, to_train, strip):
         tta_model = model
     with torch.no_grad():
         for data, meta in tqdm(test_loader):
+            data = crop_image(data, strip)
             data = data.to(device).float()
             output = tta_model(data)
+            output = uncrop_image(output, strip)
             batch_size = output.shape[0]
             size = output.shape
             answer = np.zeros((size[0], 1, size[2], size[3]))
@@ -262,7 +294,6 @@ def main():
     config_path = args.config_file_path
     clear_files()
     config = get_config(config_path, new_keys_allowed=True)
-    n = config.model.params.out_channels
 
     config.defrost()
     config.experiment_dir = os.path.join(config.log_dir, config.experiment_name)

@@ -7,12 +7,12 @@ import random
 
 class DataSampler(Sampler):
     def __init__(self, csv_file, get_from='sampler_weights.txt'):
-        print(get_from, csv_file)
         if os.path.exists(get_from):
             file = open(get_from, 'r')
             self.arr = [int(x.strip()) for x in file.readlines()]
             file.close()
             random.shuffle(self.arr)
+            print(len(self.arr), "!!!!!")
             return
         self.bucket = []
         for i in range(6):
@@ -22,7 +22,7 @@ class DataSampler(Sampler):
         for item in range(len(self.csv_path)):
             row = self.csv_path.iloc[item]
             pack_path = row['pack']
-            if (not item % 100):
+            if (not item % 1000):
                 print(item / len(self.csv_path))
             _, _, _, _, _, sw, cs, ps, wc, ww, dp = np.load(pack_path)
 
@@ -39,13 +39,12 @@ class DataSampler(Sampler):
             if np.unique(wc).shape[0] == 2:
                 self.bucket[5].append(item)
         sampler_weights_file = open(get_from, 'w')
-        print([len(x) for x in self.bucket])
-
         self.generate_array()
         for i in range(len(self.arr)):
             sampler_weights_file.write(str(self.arr[i]) + '\n')
         sampler_weights_file.close()
 
+    def generate_array(self):
         # [931, 1761, 270, 815, 1769, 8890]
         self.weights = [3, 2, 4, 3, 2, 1]
         self.arr = []

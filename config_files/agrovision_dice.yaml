@@ -1,16 +1,18 @@
-experiment_name: TrainImageResizeSe2
+experiment_name: TrainImageResizeSeFocalLoss
 log_dir: ./experiments
 epochs: 20
-device: cuda:1
+device: cuda:0
 seed: 15
 
 to_train: True
-train:
+parallel: True
 
+train:
+  strip: 256
   dataset:
-    type: AgroVision2021Dataset
+    type: AgroVision2021DatasetNew
     params:
-      csv_path: /datasets/rpartsey/agriculture_vision/csv/train_serialized.csv
+      csv_path: /datasets/vey/Agrovision2021/Agriculture-Vision-2021/csv/train_serialized.csv
       labels_path: /datasets/rpartsey/agriculture_vision/csv/labels_train.npy
       transforms:
         image:
@@ -28,24 +30,23 @@ train:
       augmentations:
         type:
           - flip
-          - brightness
           - grid_mask
-          - gauss
   loader:
     type: DataLoader
     params:
-      batch_size: 7
-      num_workers: 3
-      shuffle: False
-      sampler: DataSample
+      batch_size: 8
+      num_workers: 8
+      shuffle: True
+      sampler: null
   use_valid_masks: False
 
 
 val:
+  strip: 256
   dataset:
-    type: AgroVision2021Dataset
+    type: AgroVision2021DatasetNew
     params:
-      csv_path: /datasets/rpartsey/agriculture_vision/csv/val_serialized.csv
+      csv_path: /datasets/vey/Agrovision2021/Agriculture-Vision-2021/csv/val_serialized.csv
       labels_path: /datasets/rpartsey/agriculture_vision/csv/labels_train.npy
       transforms:
         image:
@@ -62,8 +63,8 @@ val:
   loader:
     type: DataLoader
     params:
-      batch_size: 7
-      num_workers: 2
+      batch_size: 8
+      num_workers: 6
       shuffle: False
       sampler: null
   use_valid_masks: True
@@ -73,7 +74,7 @@ test:
   dataset:
     type: AgroVision2021DatasetTest
     params:
-      csv_path: /datasets/rpartsey/agriculture_vision/csv/test_serialized.csv
+      csv_path: /datasets/vey/Agrovision2021/Agriculture-Vision-2021/csv/test_serialized.csv
       labels_path: /datasets/rpartsey/agriculture_vision/csv/labels_train.npy
       transforms:
         image:
@@ -85,8 +86,8 @@ test:
   loader:
     type: DataLoader
     params:
-      batch_size: 7
-      num_workers: 2
+      batch_size: 8
+      num_workers: 12
       shuffle: False
       sampler: null
   use_valid_masks: True
@@ -98,9 +99,14 @@ model:
   load: /home/ocr/code/AgroVision2021/experiments/TrainImageResizeSe/best_checkpoint.pt
   params:
     in_channels: 4
-    out_channels: 7
-    encoder_name: timm-res2net101_26w_4s
-
+    out_channels: 9
+    encoder_name: se_resnext101_32x4d
+    decoder_channels:
+      - 1024
+      - 512
+      - 256
+      - 128
+      - 64
 loss:
   type: ACW_loss
   params: null
@@ -113,9 +119,9 @@ metrics:
 optim:
   type: Adam
   params:
-    base_lr: 0.00001
-    max_lr: 0.00011
-    step: 4
+    lr:
+      - 0.0001
+      - 0.00001
     weight_decay: 0.0005
 
 stopper:

@@ -10,9 +10,9 @@ from .RandomAugMix import RandomAugMix
 from .GridMask import GridMask
 
 transformations = {
-    'flip': [A.VerticalFlip(p=0.2),
-             A.HorizontalFlip(p=0.2),
-             A.RandomRotate90(p=0.2)],
+    'flip': [A.VerticalFlip(p=0.33),
+             A.HorizontalFlip(p=0.33),
+             A.RandomRotate90(p=0.75)],
     'brightness': [A.OneOf([
         A.RandomBrightness(p=0.5),
         A.RandomBrightnessContrast(p=0.5)], p=0.7)],
@@ -23,7 +23,8 @@ transformations = {
     'grid_mask': [A.OneOf([GridMask(num_grid=1), GridMask(num_grid=2),
                            GridMask(num_grid=3), GridMask(num_grid=4)], p=0.2)],
     'channel_dropout': [ChannelDropout(channel_drop_range=(1, 1), p=0.05)],
-    'gauss': [A.OneOf([A.GaussianBlur()], p=0.1)]
+    'gauss': [A.OneOf([A.GaussianBlur()], p=0.1)],
+    'crop': [A.CropNonEmptyMaskIfExists(ignore_channels=[0], height=256, width=256)]
 }
 
 
@@ -34,13 +35,7 @@ class Augmentation:
         for aug in augs:
             for x in transformations[aug]:
                 augmentation.append(x)
-        if epoch <= 5:
-            augmentation.append(transformations['resize_small'][0])
-        elif epoch <= 8:
-            augmentation.append(transformations['resize_medium'][0])
-        elif epoch <= 11:
-            augmentation.append(transformations['resize_big'][0])
-        print(augmentation)
+
         self.aug = A.Compose(augmentation, p=1, additional_targets={"valid_mask": "mask"})
 
     def __call__(self, img, mask, valid_mask):
