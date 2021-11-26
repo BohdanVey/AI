@@ -39,6 +39,7 @@ def tta_transform():
         [
             tta.HorizontalFlip(),
             tta.VerticalFlip(),
+            tta.Rotate90(angles=[0, 180])
         ]
     )
 

@@ -24,7 +24,15 @@ transformations = {
                            GridMask(num_grid=3), GridMask(num_grid=4)], p=0.2)],
     'channel_dropout': [ChannelDropout(channel_drop_range=(1, 1), p=0.05)],
     'gauss': [A.OneOf([A.GaussianBlur()], p=0.1)],
-    'crop': [A.CropNonEmptyMaskIfExists(ignore_channels=[0], height=256, width=256)]
+    'crop': [A.CropNonEmptyMaskIfExists(ignore_channels=[0], height=256, width=256)],
+    'strong': [A.ShiftScaleRotate(shift_limit=0.0, scale_limit=0.2, rotate_limit=20, p=.4),
+               A.ElasticTransform(),
+               A.OpticalDistortion(),
+               A.OneOf([
+                   A.RandomBrightnessContrast(),
+                   A.RandomGamma()
+               ], p=0.5),
+               ]
 }
 
 

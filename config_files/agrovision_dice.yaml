@@ -1,11 +1,12 @@
-experiment_name: TrainImageResizeSeFocalLoss
+experiment_name: HARDSEGMENTATIONTest
 log_dir: ./experiments
-epochs: 20
+epochs: 10
 device: cuda:0
-seed: 15
+seed: 20
 
-to_train: True
+to_train: False
 parallel: True
+
 
 train:
   strip: 256
@@ -31,6 +32,7 @@ train:
         type:
           - flip
           - grid_mask
+          - strong
   loader:
     type: DataLoader
     params:
@@ -38,11 +40,11 @@ train:
       num_workers: 8
       shuffle: True
       sampler: null
-  use_valid_masks: False
+  use_valid_masks: True
 
 
 val:
-  strip: 256
+  strip: 128
   dataset:
     type: AgroVision2021DatasetNew
     params:
@@ -70,7 +72,8 @@ val:
   use_valid_masks: True
 
 test:
-  save_to: /datasets/vey/agrovision/sub_2
+  strip: 256
+  save_to: /datasets/vey/agrovision/agro2021
   dataset:
     type: AgroVision2021DatasetTest
     params:
@@ -96,7 +99,7 @@ test:
 model:
   type: Unet
   save: True
-  load: /home/ocr/code/AgroVision2021/experiments/TrainImageResizeSe/best_checkpoint.pt
+  load: /home/ocr/code/AgroVision2021/experiments/HARDSEGMENTATION/best_checkpoint.pt
   params:
     in_channels: 4
     out_channels: 9
@@ -107,8 +110,9 @@ model:
       - 256
       - 128
       - 64
+
 loss:
-  type: ACW_loss
+  type: FixedMultiLabelCrossEntropyMask
   params: null
 
 metrics:
@@ -120,9 +124,8 @@ optim:
   type: Adam
   params:
     lr:
-      - 0.0001
       - 0.00001
-    weight_decay: 0.0005
+      - 0.000001
 
 stopper:
   params:
